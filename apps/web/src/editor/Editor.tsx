@@ -13,7 +13,10 @@ export function Editor({ session, user }: { session: DocSession; user: PresenceU
     {
       immediatelyRender: false,
       extensions: [
-        StarterKit.configure({ undoRedo: false }),
+        StarterKit.configure({
+          undoRedo: false,
+          link: { openOnClick: false, defaultProtocol: 'https' },
+        }),
         Collaboration.configure({ document: session.doc, field: DOC_BODY_FIELD }),
         CollaborationCaret.configure({ provider: session.provider, user }),
         Placeholder.configure({ placeholder: 'Start writing…' }),

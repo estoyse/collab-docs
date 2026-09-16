@@ -1,13 +1,19 @@
 import type { Editor } from '@tiptap/core'
 import {
   Bold,
+  Code,
   Heading1,
   Heading2,
   Heading3,
   Italic,
+  Link,
   List,
   ListOrdered,
+  Minus,
+  Quote,
+  SquareCode,
   Strikethrough,
+  Underline,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -35,11 +41,36 @@ export const FORMAT_COMMANDS: FormatCommand[] = [
     run: (editor) => void editor.chain().focus().toggleItalic().run(),
   },
   {
+    id: 'underline',
+    label: 'Underline',
+    icon: Underline,
+    isActive: (editor) => editor.isActive('underline'),
+    run: (editor) => void editor.chain().focus().toggleUnderline().run(),
+  },
+  {
     id: 'strike',
     label: 'Strikethrough',
     icon: Strikethrough,
     isActive: (editor) => editor.isActive('strike'),
     run: (editor) => void editor.chain().focus().toggleStrike().run(),
+  },
+  {
+    id: 'code',
+    label: 'Inline code',
+    icon: Code,
+    isActive: (editor) => editor.isActive('code'),
+    run: (editor) => void editor.chain().focus().toggleCode().run(),
+  },
+  {
+    id: 'link',
+    label: 'Link',
+    icon: Link,
+    isActive: (editor) => editor.isActive('link'),
+    run: (editor) => {
+      if (editor.isActive('link')) {
+        void editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      }
+    },
   },
   {
     id: 'h1',
@@ -63,6 +94,27 @@ export const FORMAT_COMMANDS: FormatCommand[] = [
     run: (editor) => void editor.chain().focus().toggleHeading({ level: 3 }).run(),
   },
   {
+    id: 'blockquote',
+    label: 'Blockquote',
+    icon: Quote,
+    isActive: (editor) => editor.isActive('blockquote'),
+    run: (editor) => void editor.chain().focus().toggleBlockquote().run(),
+  },
+  {
+    id: 'codeBlock',
+    label: 'Code block',
+    icon: SquareCode,
+    isActive: (editor) => editor.isActive('codeBlock'),
+    run: (editor) => void editor.chain().focus().toggleCodeBlock().run(),
+  },
+  {
+    id: 'horizontalRule',
+    label: 'Horizontal rule',
+    icon: Minus,
+    isActive: () => false,
+    run: (editor) => void editor.chain().focus().setHorizontalRule().run(),
+  },
+  {
     id: 'bullet',
     label: 'Bullet list',
     icon: List,
@@ -78,4 +130,16 @@ export const FORMAT_COMMANDS: FormatCommand[] = [
   },
 ]
 
-export const SELECTION_COMMAND_IDS = ['bold', 'italic', 'strike', 'h2', 'bullet']
+export const ALWAYS_VISIBLE_COMMAND_IDS = [
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'link',
+  'h1',
+  'h2',
+  'bullet',
+  'ordered',
+]
+
+export const SELECTION_COMMAND_IDS = ['bold', 'italic', 'underline', 'strike', 'code', 'link']
