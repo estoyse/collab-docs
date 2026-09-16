@@ -1,4 +1,4 @@
-import { DEFAULT_DOCUMENT_TITLE, type DocumentSummary } from '@collab-docs/shared'
+import { DEFAULT_DOCUMENT_TITLE, MAX_TITLE_LENGTH, type DocumentSummary } from '@collab-docs/shared'
 import type { Db } from '../db.js'
 
 export type DocumentStore = {
@@ -47,7 +47,7 @@ export function createDocumentStore(db: Db): DocumentStore {
     create(title = DEFAULT_DOCUMENT_TITLE) {
       const summary: DocumentSummary = {
         id: generateId(),
-        title,
+        title: title.slice(0, MAX_TITLE_LENGTH),
         updatedAt: Date.now(),
       }
 

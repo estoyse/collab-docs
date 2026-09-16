@@ -1,7 +1,10 @@
 import * as Y from 'yjs'
-import { DEFAULT_DOCUMENT_TITLE, DOC_BODY_FIELD, DOC_TITLE_KEY } from '@collab-docs/shared'
-
-const MAX_TITLE_LENGTH = 120
+import {
+  DEFAULT_DOCUMENT_TITLE,
+  DOC_BODY_FIELD,
+  DOC_TITLE_KEY,
+  MAX_TITLE_LENGTH,
+} from '@collab-docs/shared'
 
 type XmlNode = Y.XmlElement | Y.XmlText | Y.XmlHook
 

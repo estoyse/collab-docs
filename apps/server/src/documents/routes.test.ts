@@ -31,10 +31,10 @@ describe('documents API', () => {
   })
 
   it('creates a document and returns it in the list', async () => {
-    const created = await request(app).post('/api/documents').send({ title: 'Plan' })
+    const created = await request(app).post('/api/documents').send({})
 
     expect(created.status).toBe(201)
-    expect(created.body.title).toBe('Plan')
+    expect(created.body.title).toBe('Untitled')
 
     const listed = await request(app).get('/api/documents')
 
@@ -42,16 +42,17 @@ describe('documents API', () => {
     expect(listed.body[0].id).toBe(created.body.id)
   })
 
-  it('defaults the title when none is given', async () => {
+  it('always defaults the title, since nothing sends one', async () => {
     const created = await request(app).post('/api/documents').send({})
 
     expect(created.body.title).toBe('Untitled')
   })
 
-  it('rejects a non-string title', async () => {
+  it('ignores a title field in the request body', async () => {
     const response = await request(app).post('/api/documents').send({ title: 42 })
 
-    expect(response.status).toBe(400)
+    expect(response.status).toBe(201)
+    expect(response.body.title).toBe('Untitled')
   })
 
   it('404s an unknown document', async () => {

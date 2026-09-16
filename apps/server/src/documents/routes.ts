@@ -1,8 +1,6 @@
 import { Router } from 'express'
 import type { DocumentStore } from './store.js'
 
-const MAX_TITLE_LENGTH = 200
-
 export function createDocumentsRouter(store: DocumentStore): Router {
   const router = Router()
 
@@ -21,20 +19,8 @@ export function createDocumentsRouter(store: DocumentStore): Router {
     response.json(document)
   })
 
-  router.post('/', (request, response) => {
-    const { title } = request.body ?? {}
-
-    if (title !== undefined && typeof title !== 'string') {
-      response.status(400).json({ error: 'title must be a string' })
-      return
-    }
-
-    if (typeof title === 'string' && title.length > MAX_TITLE_LENGTH) {
-      response.status(400).json({ error: 'title is too long' })
-      return
-    }
-
-    response.status(201).json(store.create(title?.trim() || undefined))
+  router.post('/', (_request, response) => {
+    response.status(201).json(store.create())
   })
 
   return router
