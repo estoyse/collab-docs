@@ -232,3 +232,84 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
 }
+
+.page-prose {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.page-prose > * + * {
+  margin-top: 0.75em;
+}
+
+.page-prose h1 {
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+  font-weight: 600;
+  margin-top: 1.4em;
+}
+
+.page-prose h2 {
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  font-weight: 600;
+  margin-top: 1.3em;
+}
+
+.page-prose h3 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  margin-top: 1.2em;
+}
+
+.page-prose ul,
+.page-prose ol {
+  padding-left: 1.4em;
+}
+
+.page-prose ul {
+  list-style: disc;
+}
+
+.page-prose ol {
+  list-style: decimal;
+}
+
+.page-prose li::marker {
+  color: var(--ink-muted);
+}
+
+.page-prose p.is-empty:first-child::before {
+  content: "Start writing…";
+  color: var(--ink-muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.collaboration-carets__caret {
+  border-left: 1px solid;
+  border-right: 1px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  position: relative;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collaboration-carets__label {
+  border-radius: 3px 3px 3px 0;
+  color: var(--page);
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  left: -1px;
+  line-height: 1;
+  padding: 2px 5px;
+  position: absolute;
+  top: -1.35em;
+  user-select: none;
+  white-space: nowrap;
+}
