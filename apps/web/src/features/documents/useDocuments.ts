@@ -23,8 +23,12 @@ function describeLoadFailure(error: unknown): string {
 function describeCreateFailure(error: unknown): string {
   const status = statusOf(error)
 
-  return status
-    ? `The server rejected the request (${status}). Please try again.`
+  if (status) {
+    return `The server rejected the request (${status}). Please try again.`
+  }
+
+  return navigator.onLine
+    ? 'Could not create a document. Please try again.'
     : 'Could not create a document while offline.'
 }
 
@@ -54,6 +58,11 @@ export function useDocuments() {
 
   useEffect(refresh, [refresh])
 
+  useEffect(() => {
+    window.addEventListener('focus', refresh)
+    return () => window.removeEventListener('focus', refresh)
+  }, [refresh])
+
   const create = useCallback(async (): Promise<DocumentSummary | null> => {
     try {
       const response = await fetch('/api/documents', {
@@ -73,5 +82,5 @@ export function useDocuments() {
     }
   }, [])
 
-  return { documents, loading, error, create, refresh }
+  return { documents, loading, error, create }
 }
