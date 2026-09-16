@@ -57,8 +57,9 @@ older tutorials:
 | Package | Version | Role |
 | --- | --- | --- |
 | `@hocuspocus/server` | 4.7.0 | Yjs sync server |
-| `@hocuspocus/extension-sqlite` | 4.7.0 | Document persistence |
-| Express | — | Document list/create REST |
+| `@hocuspocus/extension-database` | 4.7.0 | Persistence hooks |
+| `better-sqlite3` | 13.0.3 | SQLite driver |
+| Express | 5.2.1 | Document list/create REST |
 
 ### Decisions and rationale
 
@@ -75,9 +76,29 @@ whole backend stays one process. `y-websocket`'s bundled server is a
 reference implementation; raw `ws` + `y-protocols` concentrates risk in
 exactly the behaviour graded hardest.
 
-**SQLite.** One file on disk. Yjs documents are opaque binary blobs, so a
-relational database buys nothing; Postgres would be infrastructure
-theatre.
+**SQLite via `better-sqlite3`.** One file on disk. Yjs documents are
+opaque binary blobs, so a relational database buys nothing; Postgres would
+be infrastructure theatre.
+
+The driver choice is a portability decision, not a performance one. Node's
+built-in `node:sqlite` was rejected because it requires a flag on Node 22
+and would crash outright for a reviewer on an older runtime — the project
+must run wherever it is cloned, and that outranks avoiding a dependency.
+`better-sqlite3` 13 ships Node-API prebuilt binaries for darwin, linux,
+linuxmusl and win32 on x64 and arm64, so installing needs no compiler, no
+Python and no `node-gyp`, and one binary is ABI-stable across Node
+versions. Version 13 rather than 12 because 12.x enumerates
+`20.x || 22.x || 23.x || 24.x || 25.x` and therefore excludes Node 26,
+while 13.x declares an open-ended `>=22`.
+
+The `documents` table holds the Yjs state blob and the listing metadata
+together, driven through `@hocuspocus/extension-database` rather than
+`extension-sqlite`, so there is a single writer, a single schema, and the
+driver version is pinned here rather than inherited from the extension's
+dependency range.
+
+**Supported runtime: Node 22 or newer**, declared in `engines` and stated
+in the README.
 
 **A backend is required, and it is small.** It never touches document
 content — merging happens entirely in Yjs on the clients. The server
