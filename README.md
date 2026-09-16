@@ -29,7 +29,7 @@ pnpm dev
 - The client is at **http://localhost:5173**.
 - The server (REST API and the WebSocket sync endpoint) is at
   **http://localhost:3001** / **ws://localhost:3001**, both served from the
-  same Express process.
+  same Node process.
 
 Open the client URL in two different browser windows (or one normal window
 and one private window, so each gets its own local identity), give each
@@ -63,11 +63,12 @@ collab-docs/
 └── packages/shared/  Types crossing the wire (PresenceUser, DocumentSummary, ...)
 ```
 
-The server is deliberately one process. Express handles two plain REST
-routes (`GET /api/documents`, `POST /api/documents`) for listing and
-creating documents, and a Hocuspocus server — the Yjs sync engine — is
-attached to the same HTTP server's upgrade event, so the WebSocket traffic
-and the REST traffic share one port and one deployable unit. The server
+The server is deliberately one process. Hocuspocus — the Yjs sync engine —
+owns the HTTP server; Express is mounted through its `onRequest` hook, so
+REST and WebSocket sync share one port and one deployable unit. Express
+handles four plain REST routes (`GET /api/health`, `GET /api/documents`,
+`POST /api/documents`, `GET /api/documents/:id`) for health checks,
+listing, creating, and looking up documents. The server
 never reads or writes document content directly; a Yjs document is an
 opaque binary blob to it. All it does is relay updates between connected
 clients and persist that blob to SQLite through
@@ -138,9 +139,9 @@ the editor binding and the transport are maintained by the same people and
 tested against each other. It gives debounced persistence and connection
 lifecycle hooks (`onConnect`, the `Database` extension's `fetch`/`store`)
 out of the box instead of requiring bespoke plumbing, and — critically for
-keeping this a one-process deployment — it attaches to an existing HTTP
-server's upgrade event rather than insisting on owning its own server, so
-Express and Hocuspocus share one port.
+keeping this a one-process deployment — it owns the HTTP server itself and
+invokes Express as a delegate through its `onRequest` hook, so Express and
+Hocuspocus share one port without either needing a reverse proxy in front.
 
 **SQLite via `better-sqlite3`**, rather than Postgres or another
 client-server database: a Yjs document, once encoded, is an opaque binary
