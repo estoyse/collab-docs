@@ -44,8 +44,13 @@ pnpm typecheck    # runs tsc --noEmit across every workspace
 ```
 
 `pnpm install` does not need a C/C++ toolchain. The only native dependency,
-`better-sqlite3`, ships prebuilt Node-API binaries for the common platforms,
-and `pnpm-workspace.yaml` pre-approves the two packages (`better-sqlite3`,
+`better-sqlite3`, ships prebuilt Node-API binaries for the common platforms
+inside its own package, and its `binding.gyp` detects a matching one for
+the current platform/arch and skips compiling; pnpm still runs a
+`node-gyp rebuild` step because the package declares no explicit `install`
+script, but that step compiles nothing (no `g++`/`cc1` invocation) when a
+prebuild matches, which it does on linux/darwin/win32 × x64/arm64.
+`pnpm-workspace.yaml` pre-approves the two packages (`better-sqlite3`,
 `esbuild`) that would otherwise need a build-script approval prompt. This
 was verified on a clean clone — see "Clean-clone verification" below.
 
@@ -378,9 +383,15 @@ pnpm test
 pnpm dev
 ```
 
-Install completed with no compiler invoked and no `node-gyp` step —
-`better-sqlite3`'s prebuilt Node-API binary was used directly, approved by
-the `allowBuilds` entries in `pnpm-workspace.yaml`. All 58 tests across
-both workspaces passed, and `pnpm dev` brought up both the client and the
-server exactly as it does in the primary checkout. The scratch checkout was
-deleted afterward.
+Install completed in about 3 minutes on a cold cache with **no C/C++
+compiler invoked anywhere in the log** — pnpm's default `node-gyp rebuild`
+step for `better-sqlite3` ran (the package has no explicit `install`
+script, so pnpm falls back to it whenever a `binding.gyp` is present), but
+`better-sqlite3`'s own `binding.gyp` detected the matching prebuilt
+Node-API binary for linux-x64 already sitting in the package and made the
+build a no-op — the log shows only two `TOUCH` lines marking build targets
+done, never a compiler invocation, and the addon actually loaded at
+runtime comes from `prebuilds/linux-x64.node`, not from anything built
+locally. All 58 tests across both workspaces passed, and `pnpm dev` brought
+up both the client and the server exactly as it does in the primary
+checkout. The scratch checkout was deleted afterward.
