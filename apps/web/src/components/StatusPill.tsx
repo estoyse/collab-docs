@@ -10,8 +10,8 @@ const LABELS: Record<ConnectionState, string> = {
 const DOT_CLASSES: Record<ConnectionState, string> = {
   connecting: 'bg-ink-muted',
   syncing: 'bg-accent-blue',
-  synced: 'bg-emerald-600',
-  offline: 'bg-amber-600',
+  synced: 'bg-state-ok',
+  offline: 'bg-state-offline',
 }
 
 export function StatusPill({
