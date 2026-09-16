@@ -255,10 +255,14 @@ canvas itself is set in a serif face, which is inside Notion's own
 vocabulary (it ships a serif page mode) and is what visually separates the
 page from the sans-serif chrome around it.
 
-Every color, spacing value, radius, and font size in the app comes from a
-single token layer defined as OKLCH custom properties in
-`apps/web/src/index.css` (spacing on a 4px base, six font sizes, two type
-families). Components are not hand-tinted; they consume these tokens, and
+Every color, radius, and font size in the app comes from a single token
+layer defined as OKLCH custom properties in `apps/web/src/index.css`
+(eight font sizes, two type families). Spacing is Tailwind's built-in 4px
+scale, unmodified — there is no spacing token layer — and a handful of
+controls reach for off-scale half-steps (`gap-1.5`, `px-2.5`, and similar)
+where a whole 4px step would be visibly too tight or too loose; that's an
+accepted, deliberate exception to the 4px scale, not an oversight.
+Components are not hand-tinted; they consume these tokens, and
 `apps/web/src/lib/colors.ts` is the one place outside that file allowed to
 hold a raw hex value, because the presence-color ramp needs to hand Tiptap
 literal hex strings.
