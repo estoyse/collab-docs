@@ -2,6 +2,7 @@ import type { PresenceUser } from '@collab-docs/shared'
 import { colorForName } from './colors.js'
 
 const STORAGE_KEY = 'collab-docs:identity'
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 
 export function loadIdentity(): PresenceUser | null {
   try {
@@ -19,7 +20,11 @@ export function loadIdentity(): PresenceUser | null {
       typeof (parsed as PresenceUser).name === 'string' &&
       typeof (parsed as PresenceUser).color === 'string'
     ) {
-      return parsed as PresenceUser
+      const stored = parsed as PresenceUser
+
+      return HEX_COLOR.test(stored.color)
+        ? stored
+        : saveIdentity(stored.name)
     }
 
     return null

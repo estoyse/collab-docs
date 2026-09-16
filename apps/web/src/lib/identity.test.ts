@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { colorForName } from './colors.js'
 import { loadIdentity, saveIdentity } from './identity.js'
 
 describe('identity', () => {
@@ -45,5 +46,26 @@ describe('identity', () => {
     localStorage.setItem('collab-docs:identity', 'not json')
 
     expect(loadIdentity()).toBeNull()
+  })
+})
+
+describe('stored colour migration', () => {
+  it('re-derives a stored colour that is not a hex value', () => {
+    localStorage.setItem(
+      'collab-docs:identity',
+      JSON.stringify({ name: 'Hamid', color: 'var(--presence-8)' }),
+    )
+
+    const loaded = loadIdentity()
+
+    expect(loaded?.name).toBe('Hamid')
+    expect(loaded?.color).toMatch(/^#[0-9a-fA-F]{6}$/)
+    expect(loaded?.color).toBe(colorForName('Hamid'))
+  })
+
+  it('leaves a valid hex colour alone', () => {
+    const saved = saveIdentity('Hamid')
+
+    expect(loadIdentity()).toEqual(saved)
   })
 })
