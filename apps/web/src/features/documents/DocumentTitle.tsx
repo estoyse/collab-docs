@@ -1,6 +1,6 @@
 import type * as Y from 'yjs'
 import { DOC_TITLE_KEY } from '@collab-docs/shared'
-import { useYText } from '@/lib/ytext'
+import { useYText } from '@/collab/ytext'
 
 export function DocumentTitle({ doc }: { doc: Y.Doc }) {
   const [title, setTitle] = useYText(doc, DOC_TITLE_KEY)
