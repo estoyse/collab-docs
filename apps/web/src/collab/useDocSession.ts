@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { PresenceUser } from '@collab-docs/shared'
-import { deriveConnectionState, type ConnectionInput, type ConnectionState } from './connection.js'
+import {
+  applyStatusChange,
+  deriveConnectionState,
+  type ConnectionInput,
+  type ConnectionState,
+} from './connection.js'
 import { createDocSession, type DocSession } from './session.js'
 
 const SERVER_URL = import.meta.env.VITE_COLLAB_URL ?? 'ws://localhost:3001'
@@ -37,7 +42,7 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
     }
 
     const onStatus = ({ status }: { status: ConnectionInput['status'] }) => {
-      input.status = status
+      applyStatusChange(input, status)
       publish()
     }
 

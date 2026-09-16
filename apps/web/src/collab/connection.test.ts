@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveConnectionState } from './connection.js'
+import { applyStatusChange, deriveConnectionState, type ConnectionInput } from './connection.js'
 
 describe('deriveConnectionState', () => {
   it('is offline when the browser reports no network', () => {
@@ -36,5 +36,47 @@ describe('deriveConnectionState', () => {
     expect(
       deriveConnectionState({ status: 'connecting', synced: false, online: false }),
     ).toBe('offline')
+  })
+})
+
+describe('applyStatusChange', () => {
+  it('clears synced when the socket disconnects', () => {
+    const input: ConnectionInput = { status: 'connected', synced: true, online: true }
+
+    const result = applyStatusChange(input, 'disconnected')
+
+    expect(result.synced).toBe(false)
+    expect(result.status).toBe('disconnected')
+  })
+
+  it('clears synced when the socket starts reconnecting', () => {
+    const input: ConnectionInput = { status: 'disconnected', synced: true, online: true }
+
+    const result = applyStatusChange(input, 'connecting')
+
+    expect(result.synced).toBe(false)
+    expect(result.status).toBe('connecting')
+  })
+
+  it('does not synthesize synced when the socket reconnects', () => {
+    const input: ConnectionInput = { status: 'connecting', synced: false, online: true }
+
+    const result = applyStatusChange(input, 'connected')
+
+    expect(result.synced).toBe(false)
+    expect(result.status).toBe('connected')
+  })
+
+  it('reports syncing, not synced, on the reconnect leg after a drop', () => {
+    let input: ConnectionInput = { status: 'connected', synced: true, online: true }
+
+    input = applyStatusChange(input, 'disconnected')
+    expect(deriveConnectionState(input)).toBe('offline')
+
+    input = applyStatusChange(input, 'connecting')
+    expect(deriveConnectionState(input)).toBe('connecting')
+
+    input = applyStatusChange(input, 'connected')
+    expect(deriveConnectionState(input)).toBe('syncing')
   })
 })
