@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import type { PresenceUser } from '@collab-docs/shared'
 import { StatusPill } from '@/components/StatusPill'
 import { OfflineStorageWarning } from '@/components/OfflineStorageWarning'
+import { deriveConnectionToast } from '@/collab/connection'
 import { useDocSession } from '@/collab/useDocSession'
 import { DocumentTitle } from '@/features/documents/DocumentTitle'
 import { AvatarStack } from '@/features/presence/AvatarStack'
@@ -28,23 +29,20 @@ export function DocumentPage({ docId, user }: { docId: string; user: PresenceUse
   )
   const users = usePresence(session)
 
-  const previousConnection = useRef(connection)
+  const inOfflineEpisode = useRef(false)
 
   useEffect(() => {
-    const previous = previousConnection.current
-    previousConnection.current = connection
+    const result = deriveConnectionToast(inOfflineEpisode.current, connection)
+    inOfflineEpisode.current = result.inOfflineEpisode
 
-    if (previous === connection) {
-      return
-    }
-
-    if (connection === 'offline') {
+    if (result.toast === 'offline') {
       toast('You are offline', {
+        id: 'connection-offline',
         description: 'Keep writing — changes are saved locally and will sync.',
       })
     }
 
-    if (previous === 'offline' && connection === 'synced') {
+    if (result.toast === 'back-online') {
       toast.success('Back online', { description: 'Your changes have been merged.' })
     }
   }, [connection])

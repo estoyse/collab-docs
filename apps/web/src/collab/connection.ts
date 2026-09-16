@@ -28,3 +28,25 @@ export function deriveConnectionState(input: ConnectionInput): ConnectionState {
 
   return input.synced ? 'synced' : 'syncing'
 }
+
+export type ConnectionToast = 'offline' | 'back-online' | null
+
+export type ConnectionToastResult = {
+  toast: ConnectionToast
+  inOfflineEpisode: boolean
+}
+
+export function deriveConnectionToast(
+  inOfflineEpisode: boolean,
+  connection: ConnectionState,
+): ConnectionToastResult {
+  if (connection === 'offline' && !inOfflineEpisode) {
+    return { toast: 'offline', inOfflineEpisode: true }
+  }
+
+  if (connection === 'synced' && inOfflineEpisode) {
+    return { toast: 'back-online', inOfflineEpisode: false }
+  }
+
+  return { toast: null, inOfflineEpisode }
+}
