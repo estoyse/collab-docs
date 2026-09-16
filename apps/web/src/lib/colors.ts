@@ -1,12 +1,12 @@
 export const PRESENCE_COLORS = [
-  '#c8635d',
-  '#be7125',
-  '#8b8c14',
-  '#429c5a',
-  '#009d9e',
-  '#418ad1',
-  '#8c74cc',
-  '#b167ab',
+  '#a15a55',
+  '#996334',
+  '#75762f',
+  '#468154',
+  '#008282',
+  '#4475a6',
+  '#7666a3',
+  '#905d8c',
 ] as const
 
 export const PRESENCE_COLOR_COUNT = PRESENCE_COLORS.length
