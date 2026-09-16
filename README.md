@@ -255,7 +255,7 @@ canvas itself is set in a serif face, which is inside Notion's own
 vocabulary (it ships a serif page mode) and is what visually separates the
 page from the sans-serif chrome around it.
 
-Every color, radius, and font size in the app comes from a single token
+Every color and font size in the app comes from a single token
 layer defined as OKLCH custom properties in `apps/web/src/index.css`
 (eight font sizes, two type families). Spacing is Tailwind's built-in 4px
 scale, unmodified — there is no spacing token layer — and a handful of
