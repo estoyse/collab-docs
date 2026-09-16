@@ -1,7 +1,10 @@
+import { useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router'
 import { ChevronLeft } from 'lucide-react'
+import { toast } from 'sonner'
 import type { PresenceUser } from '@collab-docs/shared'
 import { StatusPill } from '@/components/StatusPill'
+import { OfflineStorageWarning } from '@/components/OfflineStorageWarning'
 import { useDocSession } from '@/collab/useDocSession'
 import { DocumentTitle } from '@/features/documents/DocumentTitle'
 import { AvatarStack } from '@/features/presence/AvatarStack'
@@ -19,8 +22,32 @@ export function DocumentRoute({ user }: { user: PresenceUser }) {
 }
 
 export function DocumentPage({ docId, user }: { docId: string; user: PresenceUser }) {
-  const { session, ready, connection, pendingChanges } = useDocSession(docId, user)
+  const { session, ready, offlineStorageAvailable, connection, pendingChanges } = useDocSession(
+    docId,
+    user,
+  )
   const users = usePresence(session)
+
+  const previousConnection = useRef(connection)
+
+  useEffect(() => {
+    const previous = previousConnection.current
+    previousConnection.current = connection
+
+    if (previous === connection) {
+      return
+    }
+
+    if (connection === 'offline') {
+      toast('You are offline', {
+        description: 'Keep writing — changes are saved locally and will sync.',
+      })
+    }
+
+    if (previous === 'offline' && connection === 'synced') {
+      toast.success('Back online', { description: 'Your changes have been merged.' })
+    }
+  }, [connection])
 
   return (
     <div className="min-h-screen">
@@ -40,6 +67,8 @@ export function DocumentPage({ docId, user }: { docId: string; user: PresenceUse
           <StatusPill state={connection} pendingChanges={pendingChanges} />
         </div>
       </header>
+
+      {!offlineStorageAvailable && <OfflineStorageWarning />}
 
       {session && ready ? (
         <Editor session={session} user={user} />

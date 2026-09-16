@@ -58,7 +58,9 @@ export function createDocSession(options: {
 
     destroy() {
       provider.destroy()
-      localPersistence?.destroy()
+      localPersistence?.destroy().catch((error: unknown) => {
+        console.error('Failed to close local persistence', error)
+      })
       doc.destroy()
     },
   }
