@@ -1,0 +1,28 @@
+{
+  "name": "@collab-docs/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@collab-docs/shared": "workspace:*",
+    "@hocuspocus/extension-database": "4.7.0",
+    "@hocuspocus/server": "4.7.0",
+    "better-sqlite3": "13.0.3",
+    "express": "5.2.1",
+    "yjs": "13.6.32"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "supertest": "7.2.2",
+    "tsx": "^4.23.0",
+    "vitest": "5.0.1"
+  }
+}
