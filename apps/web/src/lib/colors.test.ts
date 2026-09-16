@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { colorForName, PRESENCE_COLOR_COUNT } from './colors.js'
+import { colorForName, PRESENCE_COLOR_COUNT, PRESENCE_COLORS } from './colors.js'
 
 describe('colorForName', () => {
   it('always returns a colour from the ramp', () => {
     for (const name of ['Alice', 'Bob', 'Карина', '', '🙂', 'a'.repeat(200)]) {
-      expect(colorForName(name)).toMatch(/^var\(--presence-[1-8]\)$/)
+      expect(colorForName(name)).toMatch(/^#[0-9a-fA-F]{6}$/)
     }
   })
 
@@ -25,5 +25,11 @@ describe('colorForName', () => {
 
   it('exposes a ramp size matching the CSS tokens', () => {
     expect(PRESENCE_COLOR_COUNT).toBe(8)
+  })
+
+  it('uses six-digit hex values, the format the caret extension requires', () => {
+    for (const color of PRESENCE_COLORS) {
+      expect(color).toMatch(/^#[0-9a-fA-F]{6}$/)
+    }
   })
 })

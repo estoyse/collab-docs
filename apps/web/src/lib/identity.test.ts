@@ -24,7 +24,7 @@ describe('identity', () => {
   })
 
   it('assigns the colour from the name', () => {
-    expect(saveIdentity('Alice').color).toMatch(/^var\(--presence-[1-8]\)$/)
+    expect(saveIdentity('Alice').color).toMatch(/^#[0-9a-fA-F]{6}$/)
   })
 
   it('returns null rather than throwing when storage is unavailable', () => {

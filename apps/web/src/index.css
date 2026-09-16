@@ -187,15 +187,6 @@
   --hover: oklch(0.371 0.008 76 / 0.055);
   --accent-blue: oklch(0.62 0.16 250);
 
-  --presence-1: oklch(0.62 0.13 25);
-  --presence-2: oklch(0.62 0.13 60);
-  --presence-3: oklch(0.62 0.13 110);
-  --presence-4: oklch(0.62 0.13 150);
-  --presence-5: oklch(0.62 0.13 195);
-  --presence-6: oklch(0.62 0.13 250);
-  --presence-7: oklch(0.62 0.13 295);
-  --presence-8: oklch(0.62 0.13 330);
-
   --radius: 0.375rem;
 }
 
