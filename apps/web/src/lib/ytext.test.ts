@@ -60,7 +60,7 @@ describe('applyTextDiff', () => {
     Y.applyUpdate(alice, Y.encodeStateAsUpdate(bob, Y.encodeStateVector(alice)))
 
     expect(alice.getText('title').toString()).toBe(bob.getText('title').toString())
-    expect(alice.getText('title').toString()).toContain('Draft')
-    expect(alice.getText('title').toString()).toContain('2026')
+    expect(alice.getText('title').toString()).toBe('Draft Report 2026')
+    expect(alice.getText('title').toString()).toContain('Report')
   })
 })
