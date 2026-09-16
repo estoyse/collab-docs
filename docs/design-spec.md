@@ -168,13 +168,16 @@ the name into a curated ramp. Documents are reachable by id.
 
 Three tiers, and the policy is itself the README answer:
 
-- **Official shadcn** — `Button`, `Toggle`, `Separator`, `DropdownMenu`,
-  `Tooltip`, `Dialog`, `Avatar`, `Command`, `Sonner`, `Badge`, `Input`.
-  Vite is a first-class documented install path (`shadcn init -t vite`).
-- **Kibo UI, two items only** — `avatar-stack` for the presence row and
-  `status` for the sync pill, via
-  `npx shadcn add https://www.kibo-ui.com/r/{name}.json`. Both verified
-  as dependency-free Tailwind components.
+- **Official shadcn only** — `Button`, `Toggle`, `Separator`,
+  `DropdownMenu`, `Tooltip`, `Dialog`, `Avatar`, `Command`, `Sonner`,
+  `Badge`, `Input`. Vite is a first-class documented install path
+  (`shadcn init -t vite`).
+- **Composed in-house** — the presence avatar stack (`flex -space-x-1`
+  with a ring, over the official `Avatar`, ~25 lines) and the sync status
+  pill (official `Badge` plus a state dot, ~15 lines). Third-party
+  registries were evaluated for both; pulling a registry to save roughly
+  forty lines of Tailwind adds an author's conventions and a supply-chain
+  surface for no benefit.
 - **Nothing else.** The Framer-Motion marketing registries (Magic UI,
   Aceternity, Cult, Motion Primitives, Kokonut, Animate UI, Skiper) fight
   a quiet editing surface. Neobrutalism is maintained and stylistically
@@ -209,8 +212,26 @@ canvas; one icon set (Lucide) at one stroke weight and two sizes (16,
 20). All of it lives in a single Tailwind v4 `@theme` block as oklch
 custom properties, generated and contrast-checked with `tweakcn`.
 
-Light theme only, structured so dark mode is a variable swap. Responsive
-to tablet width; the brief treats this as welcome, not required.
+Light theme only, structured so dark mode is a variable swap.
+
+### Responsive readiness
+
+Phone layouts are **out of scope for the MVP but the first thing built
+after it**, so the MVP must avoid choices that are expensive to reverse.
+Three constraints, observed from the start:
+
+- **Hover-reveal is never the only path to an action.** The Notion
+  surface leans on controls that appear on hover, and hover does not
+  exist on touch. Every hover-revealed control also has a persistent
+  route — a toolbar button, a menu entry, or a long-press target. This is
+  the one constraint that turns into a rewrite if ignored.
+- **The toolbar is built as an overflowable group from day one**, not a
+  fixed row. Formatting controls live in a container that can collapse
+  trailing items into an overflow menu, so narrow widths need a
+  breakpoint rather than a restructure.
+- **No fixed pixel widths in layout.** The page-on-field metaphor
+  collapses to full-bleed on narrow screens; the presence stack truncates
+  to `+N`; flex and grid rows wrap rather than scroll.
 
 ## 6. Error handling
 
@@ -235,15 +256,18 @@ Focused on the graded criterion. Yjs itself is not re-tested.
 
 - **Merge integration test (headless, milliseconds).** Two `Y.Doc`s,
   simulated disconnect, divergent edits on both sides, reconnect; assert
-  convergence and absence of duplication. This is the direct evidence for
-  the most scrutinised requirement.
-- **Playwright E2E.** Two browser contexts editing one document
-  simultaneously; then `context.setOffline(true)`, edit, reload while
-  offline to exercise the service worker, return online, assert both
-  contexts converge. This is the demo video, automated — which means the
-  demo is debugged before recording starts.
+  convergence and absence of duplication. No browser, no Playwright —
+  plain Vitest. This is the direct evidence for the most scrutinised
+  requirement, and a reviewer can run it themselves rather than taking
+  the demo video on trust.
 - **Vitest unit.** Connection state machine, name→colour assignment,
   title extraction.
+
+**Browser E2E is deliberately excluded.** Two contexts editing live, and
+the offline-edit-reconnect scenario, are verified by hand in seconds —
+which is exactly what the demo video records. Automating them would cost
+a browser dependency, offline-mode wiring and flake management to
+re-prove what the merge test already proves headlessly.
 
 ## 8. Milestones
 
@@ -256,7 +280,7 @@ Focused on the graded criterion. Yjs itself is not re-tested.
 6. Presence — awareness, colours, avatar stack, remote carets
 7. Documents — list, create, collaborative rename
 8. PWA — precache shell, offline routing, update prompt
-9. Tests — merge integration, Playwright two-context + offline
+9. Tests — headless merge integration, unit tests
 10. Design polish, README, video script
 
 Milestone 4 concentrates the risk; everything after it is additive. If
@@ -266,9 +290,13 @@ tests, which are the submission's strongest evidence.
 ## 9. Out of scope
 
 Authentication and user accounts; document sharing permissions; comments;
-version history; image upload; tables; export to other formats; mobile
-phone layouts; deployment to a public URL. None are required by the
-brief, and each would draw time from the criteria that are.
+version history; image upload; tables; export to other formats; browser
+E2E tests; deployment to a public URL. None are required by the brief,
+and each would draw time from the criteria that are.
+
+**Phone layouts are deferred, not dismissed** — they are the first work
+after the MVP, and §5 records the constraints the MVP observes so that
+work is a stylesheet pass rather than a restructure.
 
 ## 10. Risks
 
@@ -277,8 +305,9 @@ brief, and each would draw time from the criteria that are.
   `-c apps/web` to target the workspace package. Known friction, handled
   in milestone 1.
 - **Primitive library.** shadcn's default moved from Radix to Base UI in
-  July 2026. Take the current default, pin it explicitly in
-  `components.json`, and document the choice. Neither Kibo component
-  depends on a primitive library, so there is no mixing risk.
+  July 2026. Take whatever the CLI defaults to at init, pin it explicitly
+  in `components.json`, and document the choice. Since every component
+  comes from the official registry, there is no risk of mixing primitive
+  libraries.
 - **Service worker caching during development** can serve stale assets and
   waste debugging time. Register it in production builds only.
