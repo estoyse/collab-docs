@@ -261,7 +261,12 @@ layer defined as OKLCH custom properties in `apps/web/src/index.css`
 scale, unmodified — there is no spacing token layer — and a handful of
 controls reach for off-scale half-steps (`gap-1.5`, `px-2.5`, and similar)
 where a whole 4px step would be visibly too tight or too loose; that's an
-accepted, deliberate exception to the 4px scale, not an oversight.
+accepted, deliberate exception to the 4px scale, not an oversight. Radius
+mostly follows the token layer too, but the remote-caret label keeps a
+literal `border-radius: 3px 3px 3px 0` — three rounded corners and one
+square — so its bottom-left corner sits flush against the caret it belongs
+to rather than floating off with a default corner; that's an asymmetric
+shape a token scale wouldn't express, and a deliberate exception.
 Components are not hand-tinted; they consume these tokens, and
 `apps/web/src/lib/colors.ts` is the one place outside that file allowed to
 hold a raw hex value, because the presence-color ramp needs to hand Tiptap
@@ -285,18 +290,20 @@ from is itself part of the design decision: **official shadcn primitives**
 `Input` — only the ones actually imported somewhere in `apps/web/src`),
 used as structure and interaction behavior with every shadcn default (the
 zinc palette, its default radius and shadows) overridden by the token
-layer; and two small **in-house compositions** written directly against
-the token layer with no shadcn primitive underneath — the presence avatar
-stack (`AvatarStack`, an overlapping row of plain, colored `div`s with a
-ring) and the sync status pill (`StatusPill`, a plain `span` plus a state
-dot) — because both are small, single-purpose pieces of markup where
-pulling in a third-party component (or composing an unrelated shadcn
-primitive just to reuse its class names) would add a supply-chain surface
-and someone else's conventions for no real benefit. Nothing else was
-pulled in: none of the current Framer-Motion-driven marketing component
-registries fit a quiet editing surface, and the ones that could pass
-stylistically had installation or maintenance concerns that weren't worth
-taking on for a handful of components.
+layer; and two small **in-house compositions** — the presence avatar
+stack (`AvatarStack`, an overlapping row where the avatars themselves are
+plain, colored `div`s with a ring rather than the official `Avatar`
+primitive, though the stack does use the official `Tooltip` to show each
+participant's name on hover) and the sync status pill (`StatusPill`, a
+plain `span` plus a state dot with no primitive underneath) — because both
+are small, single-purpose pieces of markup where pulling in a third-party
+component (or composing an unrelated shadcn primitive just to reuse its
+class names) would add a supply-chain surface and someone else's
+conventions for no real benefit. Nothing else was pulled in: none of the
+current Framer-Motion-driven marketing component registries fit a quiet
+editing surface, and the ones that could pass stylistically had
+installation or maintenance concerns that weren't worth taking on for a
+handful of components.
 
 ### Responsive readiness
 
