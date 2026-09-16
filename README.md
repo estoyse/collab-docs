@@ -272,23 +272,24 @@ cursor reads louder than another" — no single presence color is darker,
 more saturated, or higher-contrast than its neighbors, so no one
 collaborator's cursor visually dominates a document by chance.
 
-Components come from three tiers, and which tier a given component comes
+Components come from two tiers, and which tier a given component comes
 from is itself part of the design decision: **official shadcn primitives**
-(`Button`, `Toggle`, `Separator`, `DropdownMenu`, `Tooltip`, `Dialog`,
-`Avatar`, `Command`, `Sonner`, `Badge`, `Input`), used as structure and
-interaction behavior with every shadcn default (the zinc palette, its
-default radius and shadows) overridden by the token layer; two small
-**in-house compositions** built on top of those primitives — the presence
-avatar stack (`AvatarStack`, an overlapping row of the official `Avatar`
-with a ring) and the sync status pill (`StatusPill`, the official `Badge`
-plus a state dot) — because both are small enough (well under 30 lines
-each) that pulling in a third-party component registry to save that much
-Tailwind would add a supply-chain surface and someone else's conventions
-for no real benefit; and **nothing else** — none of the current
-Framer-Motion-driven marketing component registries fit a quiet editing
-surface, and the ones that could pass stylistically had installation or
-maintenance concerns that weren't worth taking on for a handful of
-components.
+(`Button`, `Toggle`, `Separator`, `DropdownMenu`, `Tooltip`, `Sonner`,
+`Input` — only the ones actually imported somewhere in `apps/web/src`),
+used as structure and interaction behavior with every shadcn default (the
+zinc palette, its default radius and shadows) overridden by the token
+layer; and two small **in-house compositions** written directly against
+the token layer with no shadcn primitive underneath — the presence avatar
+stack (`AvatarStack`, an overlapping row of plain, colored `div`s with a
+ring) and the sync status pill (`StatusPill`, a plain `span` plus a state
+dot) — because both are small, single-purpose pieces of markup where
+pulling in a third-party component (or composing an unrelated shadcn
+primitive just to reuse its class names) would add a supply-chain surface
+and someone else's conventions for no real benefit. Nothing else was
+pulled in: none of the current Framer-Motion-driven marketing component
+registries fit a quiet editing surface, and the ones that could pass
+stylistically had installation or maintenance concerns that weren't worth
+taking on for a handful of components.
 
 ### Responsive readiness
 
