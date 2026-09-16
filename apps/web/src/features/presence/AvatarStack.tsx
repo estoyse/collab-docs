@@ -24,7 +24,6 @@ export function AvatarStack({ users }: { users: PresenceUser[] }) {
           <TooltipTrigger
             render={
               <div
-                title={user.name}
                 className="flex size-7 shrink-0 items-center justify-center rounded-full font-sans text-xs font-medium text-page ring-2 ring-field"
                 style={{ backgroundColor: user.color }}
               />
@@ -37,12 +36,18 @@ export function AvatarStack({ users }: { users: PresenceUser[] }) {
       ))}
 
       {hidden > 0 && (
-        <div
-          title={users.slice(MAX_VISIBLE).map((user) => user.name).join(', ')}
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-hover font-sans text-xs font-medium text-ink-muted ring-2 ring-field"
-        >
-          +{hidden}
-        </div>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-hover font-sans text-xs font-medium text-ink-muted ring-2 ring-field" />
+            }
+          >
+            +{hidden}
+          </TooltipTrigger>
+          <TooltipContent>
+            {users.slice(MAX_VISIBLE).map((user) => user.name).join(', ')}
+          </TooltipContent>
+        </Tooltip>
       )}
     </div>
   )
