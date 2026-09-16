@@ -192,11 +192,14 @@ run yourself in under a minute:
    demo.
 
 If your browser's storage is unavailable (private browsing in some
-browsers, or a full quota) the app detects this at startup and shows a
+browsers, or a full quota) the app probes for that explicitly at startup —
+opening a throwaway IndexedDB connection and awaiting its success or
+failure, rather than inferring a failure from a timeout — and shows a
 persistent, screen-reader-announced warning that offline editing is off for
 this session, rather than silently losing edits — silent data loss here
 would be the worst possible failure, since everything would otherwise look
-fine right up until a reload wiped it out.
+fine right up until a reload wiped it out. A short timeout still backs
+this up in case storage never responds at all.
 
 ## Testing
 

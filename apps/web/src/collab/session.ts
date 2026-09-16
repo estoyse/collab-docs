@@ -24,6 +24,28 @@ function createLocalPersistence(docId: string, doc: Y.Doc): IndexeddbPersistence
   }
 }
 
+function probeIndexedDb(): Promise<boolean> {
+  if (typeof indexedDB === 'undefined') {
+    return Promise.resolve(false)
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open('collab-docs:storage-probe')
+
+      request.onsuccess = () => {
+        request.result.close()
+        resolve(true)
+      }
+
+      request.onerror = () => resolve(false)
+      request.onblocked = () => resolve(false)
+    } catch {
+      resolve(false)
+    }
+  })
+}
+
 export function createDocSession(options: {
   docId: string
   serverUrl: string
@@ -32,16 +54,24 @@ export function createDocSession(options: {
   const { docId, serverUrl, user } = options
   const doc = new Y.Doc()
 
+  const storageProbe = probeIndexedDb()
   const localPersistence = createLocalPersistence(docId, doc)
 
-  const whenLocalReady: Promise<boolean> = localPersistence
-    ? Promise.race([
-        localPersistence.whenSynced.then(() => true),
-        new Promise<boolean>((resolve) => {
-          setTimeout(() => resolve(false), LOCAL_READY_TIMEOUT_MS)
-        }),
-      ])
-    : Promise.resolve(false)
+  const whenLocalReady: Promise<boolean> = Promise.race([
+    storageProbe.then((storageWorks) => {
+      if (!storageWorks || !localPersistence) {
+        return false
+      }
+
+      return localPersistence.whenSynced.then(
+        () => true,
+        () => false,
+      )
+    }),
+    new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), LOCAL_READY_TIMEOUT_MS)
+    }),
+  ])
 
   const provider = new HocuspocusProvider({
     url: serverUrl,
