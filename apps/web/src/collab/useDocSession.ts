@@ -90,6 +90,8 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
       created.destroy()
       setSession(null)
       setReady(false)
+      setPendingChanges(0)
+      setOfflineStorageAvailable(true)
     }
   }, [docId, user.name, user.color])
 
