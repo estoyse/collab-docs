@@ -58,13 +58,21 @@ describe('applyStatusChange', () => {
     expect(result.status).toBe('connecting')
   })
 
-  it('does not synthesize synced when the socket reconnects', () => {
-    const input: ConnectionInput = { status: 'connecting', synced: false, online: true }
+  it('clears an existing synced flag on any transition away from connected', () => {
+    const input: ConnectionInput = { status: 'connected', synced: true, online: true }
 
-    const result = applyStatusChange(input, 'connected')
+    const result = applyStatusChange(input, 'connecting')
 
     expect(result.synced).toBe(false)
-    expect(result.status).toBe('connected')
+    expect(result.status).toBe('connecting')
+  })
+
+  it('does not mutate the input it is given', () => {
+    const input: ConnectionInput = { status: 'connected', synced: true, online: true }
+
+    applyStatusChange(input, 'disconnected')
+
+    expect(input).toEqual({ status: 'connected', synced: true, online: true })
   })
 
   it('reports syncing, not synced, on the reconnect leg after a drop', () => {

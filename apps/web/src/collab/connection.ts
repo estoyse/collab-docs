@@ -10,13 +10,11 @@ export function applyStatusChange(
   input: ConnectionInput,
   status: ConnectionInput['status'],
 ): ConnectionInput {
-  input.status = status
-
-  if (status !== 'connected') {
-    input.synced = false
+  return {
+    ...input,
+    status,
+    synced: status === 'connected' ? input.synced : false,
   }
-
-  return input
 }
 
 export function deriveConnectionState(input: ConnectionInput): ConnectionState {

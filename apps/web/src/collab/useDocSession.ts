@@ -29,7 +29,7 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
     let cancelled = false
     const created = createDocSession({ docId, serverUrl: SERVER_URL, user })
 
-    const input: ConnectionInput = {
+    let input: ConnectionInput = {
       status: 'connecting',
       synced: false,
       online: navigator.onLine,
@@ -42,7 +42,7 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
     }
 
     const onStatus = ({ status }: { status: ConnectionInput['status'] }) => {
-      applyStatusChange(input, status)
+      input = applyStatusChange(input, status)
       publish()
     }
 
