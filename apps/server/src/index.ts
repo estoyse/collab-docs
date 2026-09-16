@@ -20,6 +20,8 @@ const collab = createCollabServer({ store, port: PORT, app })
 await collab.listen()
 console.log(`collab-docs server listening on http://localhost:${PORT}`)
 
+const SHUTDOWN_TIMEOUT_MS = 5000
+
 let shuttingDown = false
 
 async function shutdown(signal: string): Promise<void> {
@@ -30,10 +32,17 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true
   console.log(`\n${signal} received, flushing documents`)
 
+  const forceExit = setTimeout(() => {
+    console.error('Shutdown timed out, forcing exit')
+    process.exit(1)
+  }, SHUTDOWN_TIMEOUT_MS)
+  forceExit.unref()
+
   collab.hocuspocus.flushPendingStores()
   await collab.destroy()
   db.close()
 
+  clearTimeout(forceExit)
   process.exit(0)
 }
 
