@@ -281,8 +281,8 @@ body {
   color: var(--ink-muted);
 }
 
-.page-prose p.is-empty:first-child::before {
-  content: "Start writing…";
+.page-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
   color: var(--ink-muted);
   float: left;
   height: 0;

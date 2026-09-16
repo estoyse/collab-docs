@@ -2,6 +2,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { Collaboration } from '@tiptap/extension-collaboration'
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret'
+import { Placeholder } from '@tiptap/extension-placeholder'
 import { DOC_BODY_FIELD, type PresenceUser } from '@collab-docs/shared'
 import type { DocSession } from '@/collab/session'
 import { Toolbar } from './Toolbar'
@@ -15,6 +16,7 @@ export function Editor({ session, user }: { session: DocSession; user: PresenceU
         StarterKit.configure({ undoRedo: false }),
         Collaboration.configure({ document: session.doc, field: DOC_BODY_FIELD }),
         CollaborationCaret.configure({ provider: session.provider, user }),
+        Placeholder.configure({ placeholder: 'Start writing…' }),
       ],
       editorProps: {
         attributes: { class: 'page-prose focus:outline-none' },
