@@ -34,7 +34,7 @@ export function Editor({ session, user }: { session: DocSession; user: PresenceU
       <Toolbar editor={editor} />
       <SelectionMenu editor={editor} />
       <div className="mx-auto w-full max-w-[46rem] px-4 pb-32 sm:px-8">
-        <div className="rounded-lg border border-hairline bg-page px-6 py-12 sm:px-16">
+        <div className="min-h-[60vh] rounded-lg border border-hairline bg-page px-6 py-14 sm:px-16">
           <EditorContent editor={editor} />
         </div>
       </div>

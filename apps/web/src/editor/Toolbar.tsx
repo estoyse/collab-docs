@@ -27,7 +27,8 @@ export function Toolbar({ editor }: { editor: Editor }) {
   const overflow = FORMAT_COMMANDS.slice(ALWAYS_VISIBLE)
 
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-hairline bg-field/85 px-3 py-1.5 backdrop-blur">
+    <div className="sticky top-0 z-10 border-b border-hairline bg-field/85 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-[46rem] flex-wrap items-center gap-1 px-4 py-1.5 sm:px-8">
       <Button
         variant="ghost"
         size="icon"
@@ -75,7 +76,8 @@ export function Toolbar({ editor }: { editor: Editor }) {
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
+        )}
+      </div>
     </div>
   )
 }

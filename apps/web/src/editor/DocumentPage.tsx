@@ -121,7 +121,8 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
 
   return (
     <div className="min-h-screen">
-      <header className="flex flex-wrap items-center gap-3 border-b border-hairline px-3 py-2">
+      <header className="border-b border-hairline">
+        <div className="mx-auto flex w-full max-w-[46rem] flex-wrap items-center gap-3 px-4 py-2 sm:px-8">
         <Link
           to="/"
           aria-label="Back to documents"
@@ -135,6 +136,7 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
         <div className="flex shrink-0 items-center gap-3">
           <AvatarStack users={users} />
           <StatusPill state={connection} pendingChanges={pendingChanges} />
+        </div>
         </div>
       </header>
 
