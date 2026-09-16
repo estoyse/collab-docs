@@ -28,6 +28,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },
+  build: {
+    chunkSizeWarningLimit: 1200,
+  },
   server: {
     proxy: {
       '/api': 'http://localhost:3001',

@@ -59,21 +59,23 @@ export function Toolbar({ editor }: { editor: Editor }) {
         </Toggle>
       ))}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon" aria-label="More formatting" />}
-        >
-          <MoreHorizontal className="size-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          {overflow.map((command) => (
-            <DropdownMenuItem key={command.id} onClick={() => command.run(editor)}>
-              <command.icon className="mr-2 size-4" />
-              {command.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {overflow.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon" aria-label="More formatting" />}
+          >
+            <MoreHorizontal className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {overflow.map((command) => (
+              <DropdownMenuItem key={command.id} onClick={() => command.run(editor)}>
+                <command.icon className="mr-2 size-4" />
+                {command.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   )
 }

@@ -12,12 +12,15 @@ export const PRESENCE_COLORS = [
 export const PRESENCE_COLOR_COUNT = PRESENCE_COLORS.length
 
 export function colorForName(name: string): string {
-  let hash = 0
+  let hash = 0x811c9dc5
 
   for (const character of name) {
     const cp = character.codePointAt(0) ?? 0
-    hash = (hash ^ (cp * 0x9e3779b9)) | 0
+    hash ^= cp
+    hash = Math.imul(hash, 0x01000193)
   }
 
-  return PRESENCE_COLORS[Math.abs(hash) % PRESENCE_COLOR_COUNT]!
+  hash = (hash ^ (hash >>> 15)) >>> 0
+
+  return PRESENCE_COLORS[hash % PRESENCE_COLOR_COUNT]!
 }
