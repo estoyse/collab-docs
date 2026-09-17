@@ -75,7 +75,7 @@ export function ExportMenu({ editor, doc }: { editor: Editor; doc: Y.Doc }) {
                   variant="ghost"
                   size="icon"
                   aria-label="Export"
-                  className="text-ink-muted hover:text-ink"
+                  className="-mr-2 text-ink-muted hover:text-ink"
                 />
               }
             >

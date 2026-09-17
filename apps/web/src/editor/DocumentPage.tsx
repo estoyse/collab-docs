@@ -140,19 +140,21 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
 
   return (
     <div className="min-h-screen">
-      <header className="flex h-14 items-center justify-between gap-3 px-4 sm:px-8">
-        <Link
-          to="/"
-          className="-ml-2 inline-flex items-center gap-1 rounded-sm py-1 pr-2.5 pl-1.5 text-sm text-ink-muted transition-colors hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
-        >
-          <ChevronLeft className="size-4" />
-          Documents
-        </Link>
+      <header>
+        <div className="mx-auto flex h-14 w-full max-w-[46rem] items-center justify-between gap-3 px-4 xs:max-w-[52rem] sm:px-8">
+          <Link
+            to="/"
+            className="-ml-2 inline-flex items-center gap-1 rounded-sm py-1 pr-2.5 pl-1.5 text-sm text-ink-muted transition-colors hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
+          >
+            <ChevronLeft className="size-4" />
+            Documents
+          </Link>
 
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <StatusPill state={connection} pendingChanges={pendingChanges} outdated={outdated} />
-          <AvatarStack users={users} />
-          {session && editor && <ExportMenu editor={editor} doc={session.doc} />}
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <StatusPill state={connection} pendingChanges={pendingChanges} outdated={outdated} />
+            <AvatarStack users={users} />
+            {session && editor && <ExportMenu editor={editor} doc={session.doc} />}
+          </div>
         </div>
       </header>
 
