@@ -4,7 +4,13 @@ A real-time collaborative document editor that keeps working offline and merges 
 
 **Live demo: https://docs.azeemov.uz**
 
-This branch (`deploy/koyeb-cloudflare`) is what the demo runs: a Cloudflare static frontend, a Koyeb server built from the root `Dockerfile`, and a Turso (libSQL) database. Compared with `master` it swaps local SQLite for libSQL, reads the API and sync URLs at build time, and adds a CORS and WebSocket origin allowlist. The free server instance sleeps after an hour idle, so the first load can take a few seconds. The demo is shared with anyone who has the link. Deployment steps are in [docs/deploy.md](docs/deploy.md).
+This branch is what the demo runs. Compared with `master` it changes three things for hosting:
+
+- **Local SQLite file → Turso (hosted libSQL).** The free server host has no persistent disk, so documents live in a hosted database. The libSQL client still uses a local file in development.
+- **Relative `/api` → API URL set at build time.** The frontend and the server run on different domains.
+- **No origin checks → an allowlist for REST and WebSocket.** Once the server is public, only the demo's own site may call it.
+
+The free server sleeps after an hour idle, so the first load can take a few seconds. Anyone with the link can see and edit the demo documents. Setup steps are in [docs/deploy.md](docs/deploy.md).
 
 ## Features
 
@@ -111,28 +117,28 @@ Both persistence layers observe the same `Y.Doc`, so there is no hand-written lo
 - **Hocuspocus.** From the Tiptap team, it provides awareness, debounced persistence and lifecycle hooks (`onConnect`, database `fetch`/`store`), and hands HTTP requests to Express so REST and sync share one port.
 - **libSQL (`@libsql/client`).** A Yjs document is an opaque binary blob, so one SQLite row per document is enough. The same client opens a local file in development, an in-memory database in tests and a hosted Turso database in production with only an environment change. That matters here because Koyeb's free instance has no persistent disk.
 
-## Testing
-
-```bash
-pnpm test
-```
-
-175 tests in 25 files, all passing: 108 in `apps/web` (15 files) and 67 in `apps/server` (10 files). `packages/shared` has no tests.
-
-- `merge.test.ts`: headless `Y.Doc` peers diverge offline and merge via state vectors (concurrent typing, duplicate and out-of-order updates, a peer offline for two rounds, delete vs add, concurrent title renames).
-- Server integration tests start a real Hocuspocus server with real `HocuspocusProvider` clients (`apps/server/src/test/collabHarness.ts`): concurrent typing, disconnected client merge, reload from a local snapshot, concurrent title inserts.
-- Persistence and schema integration tests: restore after server restart, flush on graceful shutdown, schema version accept/reject.
-- Client units: connection state and toasts, network event binding, pending changes, local readiness, title diffing, presence, colours and identity, documents cache, exporters.
-- Server units: title/excerpt extraction, id, schema and origin checks, CORS, REST routes and error responses, libSQL store (binary round-trip) and migration.
-- No browser end-to-end tests; the live and offline flows are covered by the integration tests and the walkthrough above.
-
 ## Design
 
-- Everyone writes in their own ink: your presence colour is set as `--self` and drives your caret, selection, focus rings, pressed toolbar toggles and the "You" marker. Document content never uses it, so it looks the same to every reader.
-- A quiet palette (grey desk, white page, dark ink) with Literata for documents and headings and Hanken Grotesk for controls.
-- All colours, fonts, radii and shadows are tokens in `apps/web/src/index.css`, exposed to Tailwind; Base UI primitives are restyled against them.
-- Lucide icons at a single 16px size.
-- Departures from a Docs layout: a vertical tool rail on wider screens (a single scrolling row on narrow ones), the title set on the page itself, and a documents page of page previews instead of a file list.
+The goal was an interface that stays quiet around the text and is recognisably its own, not a Google Docs clone or a stock component theme.
+
+**Why it looks like this**
+
+- **Everyone writes in their own ink.** Each person's presence colour, the one others see on their cursor, is also the accent of their own interface (`--self`): caret, selection, focus outlines, pressed toolbar buttons and the "You" marker. Collaboration is the product, so its colour carries the meaning instead of a generic brand blue. Document content never uses it, so a page reads the same for everyone.
+- **Paper on a desk.** A white page with a hairline border sits on a cool grey desk. Only floating things (menus, popovers, toasts) cast a shadow, and cool graphite was chosen over warm cream to keep attention on the text.
+- **Two typefaces with one job each.** Literata, designed for long reading on screens, sets documents and page headings. Hanken Grotesk sets every control.
+- **The document owns the page.** The title is set on the page itself, and formatting lives in a slim tool rail beside it rather than a ribbon across the top. On narrow screens the rail becomes one row that only appears while you edit.
+- **Documents look like documents.** The documents page shows each one as a small page with its title and opening lines, not a list of titles that reads like a chat history.
+- **Small, fixed scales.** One type scale from 12 to 40px, radii of 3, 4 and 6px, two shadows, Lucide icons at 16px. All of it lives as tokens in `apps/web/src/index.css`.
+
+**How the Base UI primitives were styled**
+
+The components in `apps/web/src/components/ui` wrap Base UI, which ships behaviour and accessibility (focus management, keyboard navigation, ARIA) with no styling. They started from shadcn's file layout and its default classes, and every class was rewritten against the app's tokens:
+
+- The default neutral palette and `dark:` variants were removed. shadcn's variable names (`--popover`, `--muted`, …) remain only as aliases for the app's tokens.
+- One focus style everywhere: a 2px outline in your own colour instead of per-component rings.
+- Pressed toggles use a light tint of your colour. The alignment control stays neutral, because one option is always selected.
+- Menus and popovers share the page surface, a hairline border and one overlay shadow. Tooltips are small dark labels without arrows.
+- Unused variants and components were deleted, so each primitive only contains what the app uses.
 
 ## Known limitations
 
