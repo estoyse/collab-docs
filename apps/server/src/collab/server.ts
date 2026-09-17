@@ -5,10 +5,10 @@ import { Server } from '@hocuspocus/server'
 import {
   DEFAULT_DOCUMENT_TITLE,
   DOC_SCHEMA_VERSION,
-  DOCUMENT_ID_PATTERN,
   SCHEMA_MISMATCH_REASON,
   SCHEMA_VERSION_PARAMETER,
 } from '@collab-docs/shared'
+import { DOCUMENT_ID_PATTERN } from '../documents/documentId.js'
 import type { DocumentStore } from '../documents/store.js'
 import { extractExcerpt, extractTitle } from './title.js'
 

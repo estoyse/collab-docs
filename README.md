@@ -127,7 +127,7 @@ here, so no extra setup is needed.
 collab-docs/
 ├── apps/web/         React + Vite client
 ├── apps/server/      Express + Hocuspocus + SQLite, one process
-└── packages/shared/  Types crossing the wire (PresenceUser, DocumentSummary, ...)
+└── packages/shared/  The client/server contract (DocumentSummary, Yjs field names, schema version)
 ```
 
 **Client (`apps/web/src`):** `collab/` is the only module that imports
@@ -163,10 +163,14 @@ REST and Yjs sync share one port, and the `Database` extension's
 `test/collabHarness.ts` starts a real Hocuspocus server and real
 `HocuspocusProvider` clients in-process for the integration tests.
 
-**`packages/shared/src/index.ts`** holds `DocumentSummary`, `PresenceUser`,
-the schema-version constants, `DOCUMENT_ID_PATTERN`, and
-`resolveDocumentTitle`, shared between server title extraction and the
-client's export filename logic.
+**`packages/shared/src/index.ts`** holds only what both processes must agree
+on: `DocumentSummary` (the REST response), the Yjs field names the editor
+writes and the server reads (`DOC_BODY_FIELD`, `DOC_TITLE_KEY`), the
+schema-version handshake constants, and `resolveDocumentTitle`, shared
+between server title extraction and the client's export filename logic.
+One-sided values live with their only user: `PresenceUser` in
+`apps/web/src/lib/identity.ts`, `DOCUMENT_ID_PATTERN` and
+`MAX_EXCERPT_LENGTH` in the server.
 
 **Data flow.** `IndexeddbPersistence` attaches to a fresh `Y.Doc` before
 `HocuspocusProvider` does, and the editor doesn't render until the local

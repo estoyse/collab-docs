@@ -3,11 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   DOC_BODY_FIELD,
   DOC_TITLE_KEY,
-  MAX_EXCERPT_LENGTH,
   MAX_TITLE_LENGTH,
   resolveDocumentTitle,
 } from '@collab-docs/shared'
-import { extractExcerpt, extractTitle } from './title.js'
+import { MAX_EXCERPT_LENGTH, extractExcerpt, extractTitle } from './title.js'
 
 function textElement(name: string, text: string): Y.XmlElement {
   const element = new Y.XmlElement(name)

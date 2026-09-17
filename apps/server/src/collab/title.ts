@@ -2,9 +2,10 @@ import * as Y from 'yjs'
 import {
   DOC_BODY_FIELD,
   DOC_TITLE_KEY,
-  MAX_EXCERPT_LENGTH,
   resolveDocumentTitle,
 } from '@collab-docs/shared'
+
+export const MAX_EXCERPT_LENGTH = 280
 
 type XmlNode = Y.XmlElement | Y.XmlText | Y.XmlHook
 type XmlContainer = Y.XmlFragment | Y.XmlElement

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import type { PresenceUser } from '@collab-docs/shared'
+import type { PresenceUser } from '@/lib/identity'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Wordmark } from '@/components/Wordmark'

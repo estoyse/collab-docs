@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { SCHEMA_MISMATCH_REASON, type PresenceUser } from '@collab-docs/shared'
+import { SCHEMA_MISMATCH_REASON } from '@collab-docs/shared'
+import type { PresenceUser } from '@/lib/identity'
 import {
   applyStatusChange,
   deriveConnectionState,

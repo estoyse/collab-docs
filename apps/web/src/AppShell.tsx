@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router'
-import type { PresenceUser } from '@collab-docs/shared'
+import type { PresenceUser } from '@/lib/identity'
 import { Toaster } from '@/components/ui/sonner'
 import { DocumentList } from '@/features/documents/DocumentList'
 import { NameGate } from '@/features/identity/NameGate'

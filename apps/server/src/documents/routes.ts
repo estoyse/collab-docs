@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { DOCUMENT_ID_PATTERN } from '@collab-docs/shared'
+import { DOCUMENT_ID_PATTERN } from './documentId.js'
 import type { DocumentStore } from './store.js'
 
 export function createDocumentsRouter(store: DocumentStore): Router {
