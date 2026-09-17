@@ -4,84 +4,48 @@ import { cn } from 'cn'
 import { DEFAULT_DOCUMENT_TITLE, type DocumentSummary } from '@collab-docs/shared'
 import { Button } from '@/components/ui/button'
 import { Wordmark } from '@/components/Wordmark'
-import { formatEdited } from './formatEdited'
+import { editedAt, formatEdited } from './formatEdited'
 import { useDocuments } from './useDocuments'
 
-const SKELETON_PAGES = 6
+const SKELETON_ROWS = 7
 
-function PagePreview({
-  document,
-  featured = false,
-}: {
-  document: DocumentSummary
-  featured?: boolean
-}) {
-  const title = document.title.trim()
-  const excerpt = document.excerpt.trim()
-
-  return (
-    <div
-      aria-hidden
-      className={cn(
-        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-hairline bg-page text-left shadow-rail transition-[box-shadow,border-color] duration-150 group-hover:border-input group-hover:shadow-overlay motion-reduce:transition-none',
-        featured
-          ? 'aspect-[3/2] px-6 pt-6 sm:aspect-auto sm:px-10 sm:pt-10'
-          : 'aspect-[3/4] flex-none px-4 pt-4',
-      )}
-    >
-      <p
-        className={cn(
-          'font-serif font-semibold text-ink',
-          featured ? 'text-xl leading-tight sm:text-2xl' : 'line-clamp-3 text-sm leading-snug',
-        )}
-      >
-        {title || DEFAULT_DOCUMENT_TITLE}
-      </p>
-      <p
-        className={cn(
-          'mt-3 min-h-0 flex-1 overflow-hidden font-serif whitespace-pre-line [contain:size] [mask-image:linear-gradient(to_bottom,black_55%,transparent)]',
-          featured
-            ? 'text-sm leading-relaxed text-ink sm:mt-4 sm:text-prose sm:leading-relaxed'
-            : 'text-caret-label leading-relaxed text-ink-muted',
-          !excerpt && 'italic',
-        )}
-      >
-        {excerpt || 'Start writing…'}
-      </p>
-    </div>
-  )
+function firstLine(excerpt: string): string {
+  return excerpt.trim().split('\n', 1)[0]?.trim() ?? ''
 }
 
-function DocumentTile({
+function DocumentRow({
   document,
-  featured = false,
   now,
   onOpen,
 }: {
   document: DocumentSummary
-  featured?: boolean
   now: Date
   onOpen: () => void
 }) {
   const title = document.title.trim() || DEFAULT_DOCUMENT_TITLE
-  const edited = formatEdited(document.updatedAt, now)
+  const line = firstLine(document.excerpt)
 
   return (
-    <li className={cn(featured && 'col-span-2 sm:row-span-2')}>
+    <li>
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`${title}, ${edited.toLowerCase()}`}
-        className="group flex h-full w-full flex-col rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
+        aria-label={`${title}, ${formatEdited(document.updatedAt, now).toLowerCase()}`}
+        className="flex w-full flex-col gap-1 border-b border-hairline px-2.5 py-3 text-left transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-self motion-reduce:transition-none"
       >
-        <PagePreview document={document} featured={featured} />
+        <span className="flex items-baseline justify-between gap-6">
+          <span className="truncate font-serif text-prose text-ink">{title}</span>
+          <span className="flex-none text-xs text-ink-muted tabular-nums">
+            {editedAt(document.updatedAt, now)}
+          </span>
+        </span>
         <span
           className={cn(
-            'mt-3 block text-ink-muted',
-            featured ? 'text-sm' : 'text-xs',
+            'truncate font-serif text-sm text-ink-muted',
+            !line && 'italic opacity-70',
           )}
         >
-          {edited}
+          {line || 'No content yet'}
         </span>
       </button>
     </li>
@@ -105,12 +69,12 @@ export function DocumentList() {
   const showEmpty = !loading && !error && documents.length === 0
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-24 sm:px-8">
+    <div className="mx-auto w-full max-w-4xl px-4 pb-24 sm:px-8">
       <div className="flex h-14 items-center">
         <Wordmark />
       </div>
 
-      <div className="mt-10 flex flex-wrap items-end justify-between gap-4 sm:mt-14">
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-4 sm:mt-10">
         <h1 className="font-serif text-2xl font-semibold text-ink">Documents</h1>
         <Button size="lg" onClick={() => void onCreate()}>
           <Plus />
@@ -123,24 +87,16 @@ export function DocumentList() {
       )}
 
       {showSkeleton && (
-        <div className="mt-10">
+        <div className="mt-8">
           <span className="sr-only">Loading documents</span>
-          <ul
-            aria-hidden
-            className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-5"
-          >
-            {Array.from({ length: SKELETON_PAGES }).map((_, index) => (
-              <li key={index} className={cn(index === 0 && 'col-span-2 sm:row-span-2')}>
-                <div
-                  className={cn(
-                    'rounded-sm border border-hairline bg-page p-4',
-                    index === 0 ? 'aspect-[3/2] sm:aspect-auto sm:h-full' : 'aspect-[3/4]',
-                  )}
-                >
-                  <div className="h-3 w-3/5 rounded-xs bg-hover" />
-                  <div className="mt-3 h-2 w-full rounded-xs bg-hover" />
-                  <div className="mt-2 h-2 w-4/5 rounded-xs bg-hover" />
+          <ul aria-hidden>
+            {Array.from({ length: SKELETON_ROWS }).map((_, index) => (
+              <li key={index} className="border-b border-hairline px-2.5 py-3">
+                <div className="flex items-baseline justify-between gap-6">
+                  <div className="h-3.5 w-2/5 rounded-xs bg-hover" />
+                  <div className="h-2.5 w-14 flex-none rounded-xs bg-hover" />
                 </div>
+                <div className="mt-2.5 h-2.5 w-3/5 rounded-xs bg-hover" />
               </li>
             ))}
           </ul>
@@ -148,34 +104,24 @@ export function DocumentList() {
       )}
 
       {showEmpty && (
-        <div className="mt-10 grid grid-cols-2 gap-x-5 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-5">
-          <button
-            type="button"
-            onClick={() => void onCreate()}
-            className="group col-span-2 flex flex-col rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
-          >
-            <span className="flex aspect-[3/2] flex-col rounded-sm border border-dashed border-input bg-page/60 px-6 pt-6 transition-colors group-hover:border-ink-muted group-hover:bg-page sm:px-10 sm:pt-10">
-              <span className="font-serif text-xl font-semibold text-ink-muted sm:text-2xl">
-                {DEFAULT_DOCUMENT_TITLE}
-              </span>
-              <span className="mt-3 font-serif text-sm text-ink-muted italic sm:mt-4 sm:text-prose">
-                Start writing…
-              </span>
-            </span>
-            <span className="mt-3 text-sm text-ink-muted">
-              No documents yet. Start one, then share its link to write together.
-            </span>
-          </button>
+        <div className="mt-8 border-t border-hairline pt-10">
+          <p className="font-serif text-prose text-ink">Nothing here yet</p>
+          <p className="mt-2 max-w-sm text-sm text-ink-muted">
+            Start a document, then share its link with anyone you want writing alongside you.
+          </p>
+          <Button size="lg" className="mt-6" onClick={() => void onCreate()}>
+            <Plus />
+            New document
+          </Button>
         </div>
       )}
 
       {documents.length > 0 && (
-        <ul className="mt-10 grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-5">
-          {documents.map((document, index) => (
-            <DocumentTile
+        <ul className="mt-8">
+          {documents.map((document) => (
+            <DocumentRow
               key={document.id}
               document={document}
-              featured={index === 0}
               now={now}
               onOpen={() => void navigate(`/d/${document.id}`)}
             />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatEdited } from './formatEdited'
+import { editedAt, formatEdited } from './formatEdited'
 
 const now = new Date(2026, 8, 17, 15, 30)
 
@@ -28,5 +28,18 @@ describe('formatEdited', () => {
   it('falls back to a date after a week, with the year only when it differs', () => {
     expect(formatEdited(at(2026, 7, 1, 9, 0), now)).not.toContain('2026')
     expect(formatEdited(at(2025, 7, 1, 9, 0), now)).toContain('2025')
+  })
+})
+
+describe('editedAt', () => {
+  it('returns the bare phrase without the Edited prefix', () => {
+    expect(editedAt(now.getTime() - 20_000, now)).toBe('just now')
+    expect(editedAt(at(2026, 7, 1, 9, 0), now)).not.toContain('Edited')
+  })
+
+  it('is what formatEdited prefixes', () => {
+    const timestamp = at(2026, 8, 14, 9, 0)
+
+    expect(formatEdited(timestamp, now)).toBe(`Edited ${editedAt(timestamp, now)}`)
   })
 })
