@@ -4,13 +4,21 @@ A real-time collaborative document editor that keeps working offline and merges 
 
 **Live demo: https://docs.azeemov.uz**
 
+> [!IMPORTANT]
+> **The live demo is slower than the app itself.** It runs on free hosting, and the delays come from the hosting, not from the editor:
+>
+> - **Cold start.** The free server sleeps after an hour without visitors. The first page load after that waits a few seconds while it wakes up.
+> - **Distance between servers.** The server and the database are hosted physically far apart. Every request pays roughly **80ms to reach the server** and another **80ms from the server to the database**, so opening the documents list or a document takes slightly longer than running locally.
+>
+> Once a document is open, typing is not affected: edits apply locally first and sync in the background.
+
 This branch is what the demo runs. Compared with `master` it changes three things for hosting:
 
 - **Local SQLite file → Turso (hosted libSQL).** The free server host has no persistent disk, so documents live in a hosted database. The libSQL client still uses a local file in development.
 - **Relative `/api` → API URL set at build time.** The frontend and the server run on different domains.
 - **No origin checks → an allowlist for REST and WebSocket.** Once the server is public, only the demo's own site may call it.
 
-The free server sleeps after an hour idle, so the first load can take a few seconds. Anyone with the link can see and edit the demo documents. Setup steps are in [docs/deploy.md](docs/deploy.md).
+Anyone with the link can see and edit the demo documents. Setup steps are in [docs/deploy.md](docs/deploy.md).
 
 ## Features
 
