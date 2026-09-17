@@ -1,11 +1,11 @@
 import * as Y from 'yjs'
-import { DEFAULT_DOCUMENT_TITLE, MAX_TITLE_LENGTH, type DocumentSummary } from '@collab-docs/shared'
+import { DEFAULT_DOCUMENT_TITLE, type DocumentSummary } from '@collab-docs/shared'
 import type { Db } from '../db.js'
 import { extractExcerpt } from '../collab/title.js'
 
 export type DocumentStore = {
   list(): DocumentSummary[]
-  create(title?: string): DocumentSummary
+  create(): DocumentSummary
   get(id: string): DocumentSummary | null
   loadState(id: string): Uint8Array | null
   saveState(id: string, state: Uint8Array, title: string, excerpt: string): void
@@ -54,10 +54,10 @@ export function createDocumentStore(db: Db): DocumentStore {
       return (listStatement.all() as DocumentRow[]).map(toSummary)
     },
 
-    create(title = DEFAULT_DOCUMENT_TITLE) {
+    create() {
       const summary: DocumentSummary = {
         id: generateId(),
-        title: title.slice(0, MAX_TITLE_LENGTH),
+        title: DEFAULT_DOCUMENT_TITLE,
         excerpt: '',
         updatedAt: Date.now(),
       }

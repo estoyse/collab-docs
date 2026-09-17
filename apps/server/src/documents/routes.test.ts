@@ -61,5 +61,16 @@ describe('documents API', () => {
     const response = await request(app).get('/api/documents/missing')
 
     expect(response.status).toBe(404)
+    expect(response.body).toEqual({ error: 'Document not found' })
+  })
+
+  it('400s a malformed document id', async () => {
+    const tooLong = await request(app).get(`/api/documents/${'a'.repeat(65)}`)
+    const badCharacters = await request(app).get('/api/documents/has%20space')
+
+    expect(tooLong.status).toBe(400)
+    expect(tooLong.body).toEqual({ error: 'Invalid document id' })
+    expect(badCharacters.status).toBe(400)
+    expect(badCharacters.body).toEqual({ error: 'Invalid document id' })
   })
 })

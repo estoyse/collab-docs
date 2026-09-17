@@ -4,7 +4,7 @@ import {
   type JSONContent,
   type MarkdownRendererHelpers,
 } from '@tiptap/core'
-import { DEFAULT_DOCUMENT_TITLE } from '@collab-docs/shared'
+import { DEFAULT_DOCUMENT_TITLE, resolveDocumentTitle } from '@collab-docs/shared'
 
 const RESERVED_FILE_NAME_CHARACTERS = new Set('<>:"/\\|?*')
 const MAX_FILE_NAME_LENGTH = 100
@@ -15,7 +15,7 @@ export function resolveExportTitle(title: string, bodyText: string): string {
     .map((line) => line.trim())
     .find(Boolean)
 
-  return title.trim() || firstBodyLine || DEFAULT_DOCUMENT_TITLE
+  return resolveDocumentTitle(title, firstBodyLine ?? '')
 }
 
 export function exportFileName(title: string, extension: string): string {

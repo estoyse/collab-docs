@@ -1,10 +1,9 @@
 import * as Y from 'yjs'
 import {
-  DEFAULT_DOCUMENT_TITLE,
   DOC_BODY_FIELD,
   DOC_TITLE_KEY,
   MAX_EXCERPT_LENGTH,
-  MAX_TITLE_LENGTH,
+  resolveDocumentTitle,
 } from '@collab-docs/shared'
 
 type XmlNode = Y.XmlElement | Y.XmlText | Y.XmlHook
@@ -65,9 +64,7 @@ function firstBodyLine(doc: Y.Doc): string {
 }
 
 export function extractTitle(doc: Y.Doc): string {
-  const candidate = doc.getText(DOC_TITLE_KEY).toString().trim() || firstBodyLine(doc)
-
-  return (candidate || DEFAULT_DOCUMENT_TITLE).slice(0, MAX_TITLE_LENGTH)
+  return resolveDocumentTitle(doc.getText(DOC_TITLE_KEY).toString(), firstBodyLine(doc))
 }
 
 export function extractExcerpt(doc: Y.Doc): string {

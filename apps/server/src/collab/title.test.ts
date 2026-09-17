@@ -1,6 +1,12 @@
 import * as Y from 'yjs'
 import { describe, expect, it } from 'vitest'
-import { DOC_BODY_FIELD, DOC_TITLE_KEY, MAX_EXCERPT_LENGTH } from '@collab-docs/shared'
+import {
+  DOC_BODY_FIELD,
+  DOC_TITLE_KEY,
+  MAX_EXCERPT_LENGTH,
+  MAX_TITLE_LENGTH,
+  resolveDocumentTitle,
+} from '@collab-docs/shared'
 import { extractExcerpt, extractTitle } from './title.js'
 
 function textElement(name: string, text: string): Y.XmlElement {
@@ -20,6 +26,25 @@ function docWithBody(paragraphs: string[]): Y.Doc {
 
   return doc
 }
+
+describe('resolveDocumentTitle', () => {
+  it('prefers the trimmed title', () => {
+    expect(resolveDocumentTitle('  Plan  ', 'Body')).toBe('Plan')
+  })
+
+  it('falls back to the trimmed first body line', () => {
+    expect(resolveDocumentTitle('   ', '  First line ')).toBe('First line')
+  })
+
+  it('falls back to the default title when both are blank', () => {
+    expect(resolveDocumentTitle('', '  ')).toBe('Untitled')
+  })
+
+  it('caps the result at MAX_TITLE_LENGTH', () => {
+    expect(resolveDocumentTitle('y'.repeat(500), '')).toHaveLength(MAX_TITLE_LENGTH)
+    expect(resolveDocumentTitle('', 'z'.repeat(500))).toHaveLength(MAX_TITLE_LENGTH)
+  })
+})
 
 describe('extractTitle', () => {
   it('prefers the collaborative title field', () => {

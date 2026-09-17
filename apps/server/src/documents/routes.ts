@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { DOCUMENT_ID_PATTERN } from '@collab-docs/shared'
 import type { DocumentStore } from './store.js'
 
 export function createDocumentsRouter(store: DocumentStore): Router {
@@ -9,7 +10,14 @@ export function createDocumentsRouter(store: DocumentStore): Router {
   })
 
   router.get('/:id', (request, response) => {
-    const document = store.get(request.params.id)
+    const { id } = request.params
+
+    if (!DOCUMENT_ID_PATTERN.test(id)) {
+      response.status(400).json({ error: 'Invalid document id' })
+      return
+    }
+
+    const document = store.get(id)
 
     if (!document) {
       response.status(404).json({ error: 'Document not found' })

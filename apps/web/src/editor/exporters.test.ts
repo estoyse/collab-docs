@@ -17,6 +17,10 @@ describe('resolveExportTitle', () => {
     expect(resolveExportTitle('', '\n  \nFirst line\nSecond')).toBe('First line')
     expect(resolveExportTitle(' ', '')).toBe('Untitled')
   })
+
+  it('caps the title at the shared maximum title length', () => {
+    expect(resolveExportTitle('', `  ${'x'.repeat(300)}  `)).toBe('x'.repeat(120))
+  })
 })
 
 describe('exportFileName', () => {
