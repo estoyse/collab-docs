@@ -86,14 +86,6 @@ export function DocumentPage({ docId, user }: { docId: string; user: PresenceUse
     return <DocumentNotFound />
   }
 
-  if (existence === 'checking') {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-ink-muted">
-        Opening document…
-      </div>
-    )
-  }
-
   return (
     <ErrorBoundary
       resetKey={docId}
@@ -101,12 +93,20 @@ export function DocumentPage({ docId, user }: { docId: string; user: PresenceUse
       title="This document couldn't be displayed"
       description="Your edits are kept on this device and on the server once synced. Reload to reopen it."
     >
-      <DocumentEditor docId={docId} user={user} />
+      <DocumentEditor docId={docId} user={user} existence={existence} />
     </ErrorBoundary>
   )
 }
 
-function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) {
+function DocumentEditor({
+  docId,
+  user,
+  existence,
+}: {
+  docId: string
+  user: PresenceUser
+  existence: Existence
+}) {
   const { session, ready, offlineStorageAvailable, connection, pendingChanges, outdated } =
     useDocSession(docId, user)
   const users = usePresence(session)
@@ -160,7 +160,7 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
 
       {!offlineStorageAvailable && <OfflineStorageWarning />}
 
-      {session && ready ? (
+      {existence !== 'checking' && session && ready ? (
         <Editor session={session} user={user} onEditorChange={setEditor} />
       ) : (
         <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-muted">
