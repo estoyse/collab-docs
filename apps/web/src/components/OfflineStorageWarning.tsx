@@ -4,9 +4,9 @@ export function OfflineStorageWarning() {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2 border-b border-hairline bg-state-offline-surface px-3 py-2 text-xs text-ink"
+      className="mx-4 mb-4 flex items-start gap-2.5 rounded-md bg-state-offline-surface px-4 py-3 text-sm text-ink sm:mx-auto sm:max-w-[40rem]"
     >
-      <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-state-offline" />
+      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-state-offline" />
       <p>
         Offline editing is unavailable in this browser session, so changes made
         without a connection will not be kept. Private browsing windows and

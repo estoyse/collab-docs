@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Toggle } from '@/components/ui/toggle'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 function normalizeUrl(value: string): string {
   const trimmed = value.trim()
@@ -17,10 +18,14 @@ export function LinkControl({
   editor,
   active,
   size = 'default',
+  tooltipSide,
+  popoverSide = 'bottom',
 }: {
   editor: Editor
   active: boolean
   size?: 'default' | 'sm'
+  tooltipSide?: 'right' | 'bottom' | 'top'
+  popoverSide?: 'right' | 'bottom'
 }) {
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState('')
@@ -43,14 +48,25 @@ export function LinkControl({
     setOpen(false)
   }
 
+  const trigger = (
+    <PopoverTrigger render={<Toggle size={size} pressed={active} aria-label="Link" />}>
+      <LinkIcon className="size-4" />
+    </PopoverTrigger>
+  )
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Toggle size={size} pressed={active} aria-label="Link" />}>
-        <LinkIcon className="size-4" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 gap-2">
+      {tooltipSide ? (
+        <Tooltip>
+          <TooltipTrigger render={trigger} />
+          <TooltipContent side={tooltipSide}>Link</TooltipContent>
+        </Tooltip>
+      ) : (
+        trigger
+      )}
+      <PopoverContent side={popoverSide} align="start" className="w-72 gap-2">
         <form
-          className="flex items-center gap-1.5"
+          className="flex items-center gap-2"
           onSubmit={(event) => {
             event.preventDefault()
             applyLink()
@@ -60,19 +76,18 @@ export function LinkControl({
             autoFocus
             value={url}
             onChange={(event) => setUrl(event.target.value)}
-            placeholder="https://example.com"
-            className="h-7 text-sm"
+            placeholder="Paste or type a link"
+            aria-label="Link address"
+            className="h-8"
           />
-          <Button type="submit" size="sm">
-            Apply
-          </Button>
+          <Button type="submit">{active ? 'Update' : 'Add link'}</Button>
         </form>
         {active && (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="self-start text-ink-muted"
+            className="self-start text-ink-muted hover:text-danger"
             onClick={removeLink}
           >
             Remove link

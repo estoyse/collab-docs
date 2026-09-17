@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ChevronLeft, FileQuestionMark } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
+import type { Editor as TiptapEditor } from '@tiptap/core'
 import { toast } from 'sonner'
 import type { PresenceUser } from '@collab-docs/shared'
+import { buttonVariants } from '@/components/ui/button'
 import { StatusPill } from '@/components/StatusPill'
+import { Wordmark } from '@/components/Wordmark'
 import { OfflineStorageWarning } from '@/components/OfflineStorageWarning'
 import { deriveConnectionToast } from '@/collab/connection'
 import { useDocSession } from '@/collab/useDocSession'
-import { DocumentTitle } from '@/features/documents/DocumentTitle'
 import { AvatarStack } from '@/features/presence/AvatarStack'
 import { usePresence } from '@/features/presence/usePresence'
 import { Editor } from './Editor'
+import { ExportMenu } from './ExportMenu'
 
 type Existence = 'checking' | 'exists' | 'not-found' | 'unreachable'
 
@@ -45,19 +48,20 @@ function useDocumentExistence(docId: string): Existence {
 
 function DocumentNotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="max-w-sm rounded-lg border border-hairline bg-page px-6 py-16 text-center">
-        <FileQuestionMark className="mx-auto size-6 text-ink-muted" />
-        <p className="mt-3 font-serif text-lg">Document not found</p>
-        <p className="mt-1 text-sm text-ink-muted">
-          This link doesn't point to a document that exists.
-        </p>
-        <Link
-          to="/"
-          className="mt-6 inline-block text-sm text-accent-blue underline underline-offset-4"
-        >
-          Back to documents
-        </Link>
+    <div className="flex min-h-screen flex-col px-4 sm:px-8">
+      <div className="flex h-14 items-center">
+        <Wordmark />
+      </div>
+      <div className="flex flex-1 items-center justify-center pb-24">
+        <div className="w-full max-w-sm">
+          <h1 className="font-serif text-xl font-semibold text-ink">This document doesn't exist</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            The link may be mistyped, or the document was never created on this server.
+          </p>
+          <Link to="/" className={buttonVariants({ size: 'lg', className: 'mt-6' })}>
+            Go to documents
+          </Link>
+        </div>
       </div>
     </div>
   )
@@ -97,6 +101,7 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
     user,
   )
   const users = usePresence(session)
+  const [editor, setEditor] = useState<TiptapEditor | null>(null)
 
   const inOfflineEpisode = useRef(false)
 
@@ -121,29 +126,26 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-hairline">
-        <div className="mx-auto flex w-full max-w-[46rem] flex-wrap items-center gap-3 px-4 py-2 sm:px-8">
+      <header className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
         <Link
           to="/"
-          aria-label="Back to documents"
-          className="flex size-8 shrink-0 items-center justify-center rounded-md hover:bg-hover"
+          className="-ml-2 inline-flex items-center gap-1 rounded-sm py-1 pr-2.5 pl-1.5 text-sm text-ink-muted transition-colors hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
         >
           <ChevronLeft className="size-4" />
+          Documents
         </Link>
 
-        {session && ready && <DocumentTitle doc={session.doc} />}
-
-        <div className="flex shrink-0 items-center gap-3">
-          <AvatarStack users={users} />
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <StatusPill state={connection} pendingChanges={pendingChanges} />
-        </div>
+          <AvatarStack users={users} currentUser={user} />
+          {session && editor && <ExportMenu editor={editor} doc={session.doc} />}
         </div>
       </header>
 
       {!offlineStorageAvailable && <OfflineStorageWarning />}
 
       {session && ready ? (
-        <Editor session={session} user={user} />
+        <Editor session={session} user={user} onEditorChange={setEditor} />
       ) : (
         <div className="flex min-h-[60vh] items-center justify-center text-sm text-ink-muted">
           Opening document…

@@ -8,10 +8,14 @@ const LABELS: Record<ConnectionState, string> = {
 }
 
 const DOT_CLASSES: Record<ConnectionState, string> = {
-  connecting: 'bg-ink-muted',
-  syncing: 'bg-accent-blue',
+  connecting: 'bg-ink-muted motion-safe:animate-pulse',
+  syncing: 'bg-self motion-safe:animate-pulse',
   synced: 'bg-state-ok',
   offline: 'bg-state-offline',
+}
+
+function pendingLabel(count: number): string {
+  return count === 1 ? '1 change waiting to sync' : `${count} changes waiting to sync`
 }
 
 export function StatusPill({
@@ -21,14 +25,21 @@ export function StatusPill({
   state: ConnectionState
   pendingChanges: number
 }) {
-  const suffix =
-    state === 'offline' && pendingChanges > 0 ? ` · ${pendingChanges} pending` : ''
+  const showPending = state === 'offline' && pendingChanges > 0
 
   return (
-    <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-xs text-ink-muted">
-      <span className={`size-1.5 rounded-full ${DOT_CLASSES[state]}`} />
-      {LABELS[state]}
-      {suffix}
+    <span
+      role="status"
+      className="flex shrink-0 items-center gap-2 text-sm text-ink-muted"
+      title={showPending ? pendingLabel(pendingChanges) : undefined}
+    >
+      <span aria-hidden className={`size-2 rounded-full ${DOT_CLASSES[state]}`} />
+      <span className={state === 'offline' ? 'text-state-offline' : undefined}>
+        {LABELS[state]}
+        {showPending && (
+          <span className="hidden sm:inline">, {pendingLabel(pendingChanges)}</span>
+        )}
+      </span>
     </span>
   )
 }

@@ -20,7 +20,7 @@ export function SelectionMenu({ editor }: { editor: Editor }) {
 
   return (
     <BubbleMenu editor={editor}>
-      <div className="flex items-center gap-0.5 rounded-md border border-hairline bg-page p-1 shadow-sm">
+      <div className="flex items-center gap-0.5 rounded-md border border-hairline bg-page p-1 shadow-overlay">
         {SELECTION_COMMANDS.map((command) =>
           command.id === 'link' ? (
             <LinkControl
