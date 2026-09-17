@@ -3,17 +3,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
 const toggleVariants = cva(
-  "group/toggle inline-flex items-center justify-center gap-1 rounded-sm text-sm font-medium whitespace-nowrap text-ink-muted transition-colors outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-danger aria-pressed:bg-self/12 aria-pressed:text-self data-[pressed]:bg-self/12 data-[pressed]:text-self [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/toggle inline-flex items-center justify-center gap-1 rounded-sm text-sm font-medium whitespace-nowrap text-ink-muted transition-colors outline-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-self/12 aria-pressed:text-self data-[pressed]:bg-self/12 data-[pressed]:text-self [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-transparent",
-        outline: "border border-input bg-transparent hover:bg-hover",
       },
       size: {
         default: "h-8 min-w-8 px-2.5",
-        sm: "h-7 min-w-7 px-2.5 text-[0.8125rem] [&_svg:not([class*='size-'])]:size-3.5",
-        lg: "h-9 min-w-9 rounded-md px-2.5",
+        sm: "h-7 min-w-7 px-2.5 text-sm",
       },
     },
     defaultVariants: {

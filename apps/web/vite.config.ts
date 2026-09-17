@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2}'],
+        globPatterns: ['**/*.{js,css,html,woff2,svg}'],
         navigateFallback: 'index.html',
       },
       manifest: {
@@ -19,8 +19,9 @@ export default defineConfig({
         short_name: 'Collab Docs',
         start_url: '/',
         display: 'standalone',
-        background_color: '#f7f6f3',
-        theme_color: '#f7f6f3',
+        background_color: '#eceeed',
+        theme_color: '#eceeed',
+        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
       devOptions: { enabled: false },
     }),

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactElement, type RefObject } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
-import { MoreHorizontal, Redo2, Undo2 } from 'lucide-react'
+import { Ellipsis, Redo2, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -185,7 +185,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
       className="sticky top-0 z-10 -mx-4 h-0 xs:top-6 xs:mx-0 xs:h-auto xs:self-start"
     >
       <div
-        className={`absolute inset-x-0 top-0 bg-field/90 py-2 backdrop-blur transition-[translate,opacity] duration-200 ease-out motion-reduce:transition-none xs:static xs:rounded-md xs:border xs:border-hairline xs:bg-page xs:p-1 xs:shadow-rail xs:backdrop-blur-none ${shown ? '' : 'pointer-events-none -translate-y-full opacity-0'}`}
+        className={`absolute inset-x-0 top-0 bg-field/90 py-2 backdrop-blur transition-[translate,opacity] duration-150 ease-out motion-reduce:transition-none xs:static xs:rounded-md xs:border xs:border-hairline xs:bg-page xs:p-1 xs:shadow-rail xs:backdrop-blur-none ${shown ? '' : 'pointer-events-none -translate-y-full opacity-0'}`}
       >
         <div
           ref={scroller}
@@ -243,7 +243,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
                     onPressedChange={() => command.run(editor)}
                     aria-label={command.label}
                   >
-                    <command.icon className="size-4" />
+                    <command.icon />
                   </Toggle>
                 </ToolbarTooltip>
               )}
@@ -263,7 +263,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
                 {TEXT_ALIGNMENTS.map(({ value, label, icon: Icon, shortcut }) => (
                   <ToolbarTooltip key={value} label={label} shortcut={shortcut} side={side}>
                     <ToggleGroupItem value={value} aria-label={label}>
-                      <Icon className="size-4" />
+                      <Icon />
                     </ToggleGroupItem>
                   </ToolbarTooltip>
                 ))}
@@ -284,7 +284,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
                   />
                 }
               >
-                <MoreHorizontal />
+                <Ellipsis />
               </DropdownMenuTrigger>
             </ToolbarTooltip>
             <DropdownMenuContent side={wide ? 'right' : 'bottom'} align="start" className="w-56">

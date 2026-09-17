@@ -307,7 +307,7 @@
 }
 
 .collaboration-carets__label {
-  border-radius: 3px 3px 3px 0;
+  border-radius: var(--radius-xs) var(--radius-xs) var(--radius-xs) 0;
   color: var(--page);
   font-family: var(--font-sans);
   font-size: var(--text-caret-label);
@@ -319,4 +319,8 @@
   top: -1.35em;
   user-select: none;
   white-space: nowrap;
+}
+
+.remote-selection {
+  border-radius: var(--radius-xs);
 }

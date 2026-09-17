@@ -1,19 +1,6 @@
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import { cn } from "cn"
 
-function TooltipProvider({
-  delay = 0,
-  ...props
-}: TooltipPrimitive.Provider.Props) {
-  return (
-    <TooltipPrimitive.Provider
-      data-slot="tooltip-provider"
-      delay={delay}
-      {...props}
-    />
-  )
-}
-
 function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
@@ -47,7 +34,7 @@ function TooltipContent({
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            "z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-sm bg-ink px-2 py-1 text-xs font-medium text-page data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
+            "z-50 inline-flex w-fit max-w-xs origin-(--transform-origin) items-center gap-1.5 rounded-sm bg-ink px-2 py-1 text-xs font-medium text-page duration-150 motion-reduce:transition-none motion-reduce:animate-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
             className
           )}
           {...props}
@@ -59,4 +46,4 @@ function TooltipContent({
   )
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipTrigger, TooltipContent }

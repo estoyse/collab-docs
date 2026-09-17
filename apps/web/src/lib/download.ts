@@ -1,4 +1,5 @@
 const OBJECT_URL_LIFETIME_MS = 1000
+const PRINT_FRAME_TIMEOUT_MS = 60000
 
 export function downloadFile(contents: string, fileName: string, type: string) {
   const url = URL.createObjectURL(new Blob([contents], { type }))
@@ -20,17 +21,25 @@ export function printHtml(html: string) {
   frame.tabIndex = -1
   frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
 
+  let removed = false
+  const removeFrame = () => {
+    if (removed) return
+    removed = true
+    frame.remove()
+  }
+
   frame.addEventListener(
     'load',
     () => {
       const view = frame.contentWindow
 
       if (!view) {
-        frame.remove()
+        removeFrame()
         return
       }
 
-      view.addEventListener('afterprint', () => frame.remove(), { once: true })
+      view.addEventListener('afterprint', removeFrame, { once: true })
+      window.setTimeout(removeFrame, PRINT_FRAME_TIMEOUT_MS)
       view.focus()
       view.print()
     },

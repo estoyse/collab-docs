@@ -27,10 +27,19 @@ export function Editor({
       extensions: [
         StarterKit.configure({
           undoRedo: false,
+          trailingNode: false,
           link: { openOnClick: false, defaultProtocol: 'https' },
         }),
         Collaboration.configure({ document: session.doc, field: DOC_BODY_FIELD }),
-        CollaborationCaret.configure({ provider: session.provider, user }),
+        CollaborationCaret.configure({
+          provider: session.provider,
+          user,
+          selectionRender: (remoteUser) => ({
+            nodeName: 'span',
+            class: 'remote-selection',
+            style: `background-color: color-mix(in srgb, ${remoteUser.color} 22%, transparent)`,
+          }),
+        }),
         Placeholder.configure({ placeholder: 'Start writing…' }),
         TextAlign.configure({ types: ['heading', 'paragraph'] }),
       ],
@@ -54,7 +63,7 @@ export function Editor({
     <div className="mx-auto w-full max-w-[46rem] px-4 pb-32 xs:grid xs:max-w-[52rem] xs:grid-cols-[auto_minmax(0,1fr)] xs:gap-3 sm:gap-4 sm:px-8 lg:gap-5">
       <Toolbar editor={editor} />
       <SelectionMenu editor={editor} />
-      <article className="mt-4 rounded-md border border-hairline bg-page px-6 pt-12 pb-24 shadow-rail xs:mt-0 sm:px-10 sm:pt-16 md:px-12 lg:px-16">
+      <article className="mt-4 rounded-sm border border-hairline bg-page px-6 pt-12 pb-24 shadow-rail xs:mt-0 sm:px-10 sm:pt-16 md:px-12 lg:px-16">
         <DocumentTitle doc={session.doc} onEnter={() => editor.commands.focus('start')} />
         <EditorContent editor={editor} className="mt-8" />
       </article>

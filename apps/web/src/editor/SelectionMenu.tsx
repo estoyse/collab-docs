@@ -37,7 +37,7 @@ export function SelectionMenu({ editor }: { editor: Editor }) {
               onPressedChange={() => command.run(editor)}
               aria-label={command.label}
             >
-              <command.icon className="size-4" />
+              <command.icon />
             </Toggle>
           ),
         )}

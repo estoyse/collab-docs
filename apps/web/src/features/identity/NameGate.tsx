@@ -19,7 +19,7 @@ export function NameGate({ onReady }: { onReady: (user: PresenceUser) => void })
   }
 
   return (
-    <div className="flex min-h-screen flex-col px-4 sm:px-8">
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-8">
       <div className="flex h-14 items-center">
         <Wordmark />
       </div>
@@ -50,11 +50,11 @@ export function NameGate({ onReady }: { onReady: (user: PresenceUser) => void })
               <p className="font-serif text-base text-ink">
                 Writing together
                 <span
-                  className="relative inline-block h-5 w-0.5 align-text-bottom"
-                  style={{ backgroundColor: colorForName(trimmedName) }}
+                  className="collaboration-carets__caret inline-block h-5 align-text-bottom"
+                  style={{ borderColor: colorForName(trimmedName) }}
                 >
                   <span
-                    className="absolute bottom-full left-0 mb-0.5 rounded-[3px_3px_3px_0] px-1.5 py-0.5 font-sans text-[0.6875rem] leading-none font-medium whitespace-nowrap text-page"
+                    className="collaboration-carets__label"
                     style={{ backgroundColor: colorForName(trimmedName) }}
                   >
                     {trimmedName}

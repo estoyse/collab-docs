@@ -26,11 +26,16 @@ function currentTitle(editor: Editor, doc: Y.Doc): string {
 export function ExportMenu({ editor, doc }: { editor: Editor; doc: Y.Doc }) {
   const exportHtml = () => {
     const title = currentTitle(editor, doc)
-    downloadFile(
-      standaloneHtml(title, editor.getHTML()),
-      exportFileName(title, 'html'),
-      'text/html;charset=utf-8',
-    )
+
+    try {
+      downloadFile(
+        standaloneHtml(title, editor.getHTML()),
+        exportFileName(title, 'html'),
+        'text/html;charset=utf-8',
+      )
+    } catch {
+      toast.error('Could not export HTML')
+    }
   }
 
   const exportMarkdown = async () => {
@@ -51,7 +56,12 @@ export function ExportMenu({ editor, doc }: { editor: Editor; doc: Y.Doc }) {
 
   const exportPdf = () => {
     const title = currentTitle(editor, doc)
-    printHtml(standaloneHtml(title, editor.getHTML()))
+
+    try {
+      printHtml(standaloneHtml(title, editor.getHTML()))
+    } catch {
+      toast.error('Could not open the print dialog')
+    }
   }
 
   return (

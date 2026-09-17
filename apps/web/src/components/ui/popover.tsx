@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import { cn } from "cn"
 
@@ -34,7 +33,7 @@ function PopoverContent({
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
-            "z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-md border border-hairline bg-page p-3 text-sm text-ink shadow-overlay outline-hidden duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
+            "z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-md border border-hairline bg-page p-3 text-sm text-ink shadow-overlay outline-hidden duration-150 motion-reduce:transition-none motion-reduce:animate-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.98] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.98]",
             className
           )}
           {...props}
@@ -44,44 +43,4 @@ function PopoverContent({
   )
 }
 
-function PopoverHeader({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="popover-header"
-      className={cn("flex flex-col gap-0.5 text-sm", className)}
-      {...props}
-    />
-  )
-}
-
-function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
-  return (
-    <PopoverPrimitive.Title
-      data-slot="popover-title"
-      className={cn("text-sm font-medium text-ink", className)}
-      {...props}
-    />
-  )
-}
-
-function PopoverDescription({
-  className,
-  ...props
-}: PopoverPrimitive.Description.Props) {
-  return (
-    <PopoverPrimitive.Description
-      data-slot="popover-description"
-      className={cn("text-sm text-ink-muted", className)}
-      {...props}
-    />
-  )
-}
-
-export {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-}
+export { Popover, PopoverContent, PopoverTrigger }

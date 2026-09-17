@@ -57,7 +57,7 @@ export function LinkControl({
 
   const trigger = (
     <PopoverTrigger render={<Toggle size={size} pressed={active} aria-label="Link" />}>
-      <LinkIcon className="size-4" />
+      <LinkIcon />
     </PopoverTrigger>
   )
 

@@ -7,6 +7,7 @@ import type { PresenceUser } from '@collab-docs/shared'
 import { buttonVariants } from '@/components/ui/button'
 import { StatusPill } from '@/components/StatusPill'
 import { Wordmark } from '@/components/Wordmark'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineStorageWarning } from '@/components/OfflineStorageWarning'
 import { deriveConnectionToast } from '@/collab/connection'
 import { useDocSession } from '@/collab/useDocSession'
@@ -48,7 +49,7 @@ function useDocumentExistence(docId: string): Existence {
 
 function DocumentNotFound() {
   return (
-    <div className="flex min-h-screen flex-col px-4 sm:px-8">
+    <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 sm:px-8">
       <div className="flex h-14 items-center">
         <Wordmark />
       </div>
@@ -92,27 +93,39 @@ export function DocumentPage({ docId, user }: { docId: string; user: PresenceUse
     )
   }
 
-  return <DocumentEditor docId={docId} user={user} />
+  return (
+    <ErrorBoundary
+      resetKey={docId}
+      fullPage={false}
+      title="This document couldn't be displayed"
+      description="Your edits are kept on this device and on the server once synced. Reload to reopen it."
+    >
+      <DocumentEditor docId={docId} user={user} />
+    </ErrorBoundary>
+  )
 }
 
 function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) {
-  const { session, ready, offlineStorageAvailable, connection, pendingChanges } = useDocSession(
-    docId,
-    user,
-  )
+  const { session, ready, offlineStorageAvailable, connection, pendingChanges, outdated } =
+    useDocSession(docId, user)
   const users = usePresence(session)
   const [editor, setEditor] = useState<TiptapEditor | null>(null)
 
   const inOfflineEpisode = useRef(false)
 
   useEffect(() => {
+    if (outdated) {
+      toast.dismiss('connection-offline')
+      return
+    }
+
     const result = deriveConnectionToast(inOfflineEpisode.current, connection)
     inOfflineEpisode.current = result.inOfflineEpisode
 
     if (result.toast === 'offline') {
       toast('You are offline', {
         id: 'connection-offline',
-        description: 'Keep writing — changes are saved locally and will sync.',
+        description: 'Keep writing. Changes are saved locally and will sync.',
       })
     }
 
@@ -122,11 +135,11 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
         description: 'Your changes have been merged.',
       })
     }
-  }, [connection])
+  }, [connection, outdated])
 
   return (
     <div className="min-h-screen">
-      <header className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6">
+      <header className="flex h-14 items-center justify-between gap-3 px-4 sm:px-8">
         <Link
           to="/"
           className="-ml-2 inline-flex items-center gap-1 rounded-sm py-1 pr-2.5 pl-1.5 text-sm text-ink-muted transition-colors hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
@@ -136,8 +149,8 @@ function DocumentEditor({ docId, user }: { docId: string; user: PresenceUser }) 
         </Link>
 
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <StatusPill state={connection} pendingChanges={pendingChanges} />
-          <AvatarStack users={users} currentUser={user} />
+          <StatusPill state={connection} pendingChanges={pendingChanges} outdated={outdated} />
+          <AvatarStack users={users} />
           {session && editor && <ExportMenu editor={editor} doc={session.doc} />}
         </div>
       </header>
