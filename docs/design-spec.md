@@ -183,55 +183,108 @@ surfaced as a status pill.
 name, stored in localStorage, and receives a colour derived by hashing
 the name into a curated ramp. Documents are reachable by id.
 
-## 5. Design system
+## 5. Export
+
+An export menu sits in the document header, next to the status pill,
+reachable by click or keyboard — never only by hover, consistent with the
+rule in §6 that every action has a route besides hovering.
+
+Three formats in v1:
+
+- **HTML** — a standalone `.html` file with inline styles mirroring the
+  page's own typography. Lossless.
+- **PDF** — the same standalone HTML, printed from a hidden iframe through
+  the browser's native print dialog; the user picks "Save as PDF". Text
+  stays selectable.
+- **Markdown** — a `.md` file via Tiptap's official `@tiptap/markdown`
+  serializer. Text alignment has no Markdown equivalent and is dropped;
+  underline is written out as inline `<u>` HTML, since Markdown has no
+  native syntax for it.
+
+Export runs entirely client-side, from the live editor state. There is no
+server round-trip, so it works offline and captures local edits that
+haven't synced yet — the same offline-first property §4 describes for
+editing itself.
+
+The filename is the document title, falling back to the first non-empty
+line and then to "Untitled", with characters invalid in filenames
+stripped.
+
+**Out of scope for now**: DOCX (planned next, via the `docx` library),
+ODT, and import.
+
+## 6. Design system
 
 ### Component sourcing
 
-Three tiers, and the policy is itself the README answer:
+Two tiers, and the policy is itself the README answer:
 
-- **Official shadcn only** — `Button`, `Toggle`, `Separator`,
-  `DropdownMenu`, `Tooltip`, `Dialog`, `Avatar`, `Command`, `Sonner`,
-  `Badge`, `Input`. Vite is a first-class documented install path
-  (`shadcn init -t vite`).
-- **Composed in-house** — the presence avatar stack (`flex -space-x-1`
-  with a ring, over the official `Avatar`, ~25 lines) and the sync status
-  pill (official `Badge` plus a state dot, ~15 lines). Third-party
-  registries were evaluated for both; pulling a registry to save roughly
-  forty lines of Tailwind adds an author's conventions and a supply-chain
-  surface for no benefit.
+- **Base UI primitives** — `Button`, `Toggle`, `ToggleGroup`,
+  `DropdownMenu`, `Popover`, `Tooltip`, `Input`, `Separator`, `Sonner`.
+  Used for behaviour and accessibility, in the shadcn file layout, with
+  every default class rewritten against the app's own tokens.
+- **Composed in-house** — the presence avatar stack and its editors-list
+  popover (`AvatarStack.tsx`, over `Popover` and `Tooltip`), the sync
+  status pill (`StatusPill.tsx`, a plain `span` and a state dot with no
+  primitive underneath), the tool rail (`Toolbar.tsx`), and the wordmark
+  (`Wordmark.tsx`). Third-party registries were evaluated for these;
+  pulling one in to save a small amount of Tailwind adds an author's
+  conventions and a supply-chain surface for no benefit.
 - **Nothing else.** The Framer-Motion marketing registries (Magic UI,
   Aceternity, Cult, Motion Primitives, Kokonut, Animate UI, Skiper) fight
   a quiet editing surface. Neobrutalism is maintained and stylistically
   opposite. Origin UI has been absorbed into COSS UI with an unverified
   install path. Shadcnblocks is paid and generically SaaS-looking.
 
-shadcn is used as structure and behaviour, not as a theme. Its defaults —
-zinc ramp, 10px radius, default border weight and shadows — are all
-overridden. The editor chrome (toolbar, bubble menu) is built from these
-primitives and wired to Tiptap commands directly, keeping one styling
-system rather than importing a kit that ships its own CSS.
+Base UI is used as structure and behaviour, not as a theme. Every
+primitive's classes were rewritten against the app's tokens — no zinc or
+stone Tailwind colours, no `dark:` variants, radius clamped to 6px, one
+shared focus treatment (a 2px `--self` outline, offset from the control).
+shadcn's semantic variable names (`--popover`, `--muted`, `--accent`, and
+so on) are kept only as aliases pointing at the app tokens, not as an
+independent palette. The editor chrome (toolbar, bubble menu) is built
+from these primitives and wired to Tiptap commands directly, keeping one
+styling system rather than importing a kit that ships its own CSS.
 
 ### Visual direction
 
-A Google-Docs *wireframe* with a Notion *surface*:
+The concept is that everyone writes in their own ink:
 
-- **From Docs**, the page-on-a-field metaphor: a warm grey field, a white
-  page floating on it with a hairline border and effectively no shadow.
-  Notion has no such structure and it is the one idea worth borrowing.
-- **From Notion**, the surface treatment: warm near-black text rather than
-  pure black, borders at roughly 9% opacity, hover states as barely-there
-  grey fills, radii of 4–6px, chrome that recedes until approached.
-- **Serif document canvas.** Inside Notion's vocabulary (it ships a serif
-  page mode), and it separates the page from Docs' default sans.
-- **Presence colours** hashed into a curated ramp at fixed saturation and
-  lightness, tuned against warm paper rather than white, so no cursor
-  reads louder than another.
+- **Presence as personal accent.** Each person's presence colour —
+  hashed from their name into the ramp in `lib/colors.ts` — is set at
+  runtime as the CSS custom property `--self` on `<html>` (`AppShell.tsx`)
+  and doubles as that person's own interface accent: pressed formatting
+  toggles, focus outlines, text selection, the text caret, the syncing
+  dot, and the "You" marker in the editors list all read `--self`. The
+  alignment segmented control deliberately stays neutral, since exactly
+  one option is always selected. Document content — links included —
+  never reads `--self`, so the document looks the same to everyone.
+- **Palette.** `--field` #eceeed (a cool graphite, not warm paper),
+  `--page` #ffffff, `--ink` #23272b, `--ink-muted` #62696e (5.58:1 on
+  page, 4.79:1 on field), `--hairline` (ink at 11%), `--hover` (ink at
+  6%), `--link` #2e5e86 (6.86:1), `--danger` #a2403a, `--state-ok`
+  #357050, `--state-offline` #9a5d14 on a dedicated `#f5ecdd` offline
+  surface.
+- **Type.** Literata (variable) for the document title and body — a
+  serif built for long-form screen reading — and Hanken Grotesk
+  (variable) for all interface chrome. Scale 12/14/16/20/28/40, plus a
+  17px prose size and an 11px caret-label size; document title 40,
+  H1 28, H2 20, H3 17 (heavier semibold); prose line-height 1.75 with
+  old-style figures.
+- **Radius and shadow.** 3/4/6px only — every larger step in Tailwind's
+  default radius scale is clamped to 6px in `@theme`. Two shadow tokens:
+  `shadow-rail` (hairline lift, page and toolbar) and `shadow-overlay`
+  (menus, popovers, bubble menu, toasts).
+- **Presence colours** hashed into a ramp at fixed lightness (≈0.55) and
+  chroma (≈0.094), varying only in hue, so no cursor reads louder than
+  another.
 
-Tokens: spacing on a 4px base (4/8/12/16/24/32/48); type scale
-12/14/16/20/28/40; two families, geometric sans for chrome and serif for
-canvas; one icon set (Lucide) at one stroke weight and two sizes (16,
-20). All of it lives in a single Tailwind v4 `@theme` block as oklch
-custom properties, generated and contrast-checked with `tweakcn`.
+Tokens: spacing on Tailwind's 4px base, unmodified, plus a handful of
+off-scale half-steps where a full step reads too tight or too loose; type
+scale as above; two families — Hanken Grotesk for chrome, Literata for
+canvas; one icon set (Lucide), one stroke weight, one size (16px). All of
+it lives in a single Tailwind v4 `@theme` block as hex custom properties
+in `apps/web/src/index.css`.
 
 Light theme only, structured so dark mode is a variable swap.
 
@@ -239,22 +292,24 @@ Light theme only, structured so dark mode is a variable swap.
 
 Phone layouts are **out of scope for the MVP but the first thing built
 after it**, so the MVP must avoid choices that are expensive to reverse.
-Three constraints, observed from the start:
+Constraints observed from the start:
 
-- **Hover-reveal is never the only path to an action.** The Notion
-  surface leans on controls that appear on hover, and hover does not
-  exist on touch. Every hover-revealed control also has a persistent
-  route — a toolbar button, a menu entry, or a long-press target. This is
-  the one constraint that turns into a rewrite if ignored.
-- **The toolbar is built as an overflowable group from day one**, not a
-  fixed row. Formatting controls live in a container that can collapse
-  trailing items into an overflow menu, so narrow widths need a
-  breakpoint rather than a restructure.
-- **No fixed pixel widths in layout.** The page-on-field metaphor
-  collapses to full-bleed on narrow screens; the presence stack truncates
-  to `+N`; flex and grid rows wrap rather than scroll.
+- **Hover-reveal is never the only path to an action.** Every
+  hover-revealed control also has a persistent route — a toolbar button,
+  a menu entry, or a tooltip supplementing an already-reachable control.
+  The editors-list popover (`AvatarStack.tsx`) opens on click, not hover.
+  This is the one constraint that turns into a rewrite if ignored.
+- **The toolbar never wraps.** On screens at least 30rem (480px) wide it
+  is a vertical, sticky tool rail beside the page — the width at which
+  the rail still leaves roughly 45 characters per line. Below that it is
+  a single row: undo, redo and alignment move into its "More" menu, and
+  any remaining overflow scrolls horizontally behind a hidden scrollbar
+  with an edge fade. The rail is the default layout, not a fallback.
+- **No fixed pixel widths in layout.** The presence stack truncates to
+  `+N`; flex and grid rows are used throughout rather than pixel-pinned
+  containers.
 
-## 6. Error handling
+## 7. Error handling
 
 Governing rule: **a network error must never interrupt editing.** No
 modals, no blocking states.
@@ -271,7 +326,7 @@ modals, no blocking states.
   documents in REST; **flush open documents on SIGTERM**, or Ctrl+C
   discards the last seconds of every open edit.
 
-## 7. Testing
+## 8. Testing
 
 Focused on the graded criterion. Yjs itself is not re-tested.
 
@@ -290,7 +345,7 @@ which is exactly what the demo video records. Automating them would cost
 a browser dependency, offline-mode wiring and flake management to
 re-prove what the merge test already proves headlessly.
 
-## 8. Milestones
+## 9. Milestones
 
 1. Scaffold — workspaces, Vite, Express, shared types, one `pnpm dev`
 2. Server — Hocuspocus + SQLite + REST + graceful shutdown
@@ -308,18 +363,18 @@ Milestone 4 concentrates the risk; everything after it is additive. If
 the schedule slips, the honest cuts are the PWA and dark mode — never the
 tests, which are the submission's strongest evidence.
 
-## 9. Out of scope
+## 10. Out of scope
 
 Authentication and user accounts; document sharing permissions; comments;
-version history; image upload; tables; export to other formats; browser
-E2E tests; deployment to a public URL. None are required by the brief,
-and each would draw time from the criteria that are.
+version history; image upload; tables; browser E2E tests; deployment to a
+public URL. None are required by the brief, and each would draw time from
+the criteria that are.
 
 **Phone layouts are deferred, not dismissed** — they are the first work
-after the MVP, and §5 records the constraints the MVP observes so that
+after the MVP, and §6 records the constraints the MVP observes so that
 work is a stylesheet pass rather than a restructure.
 
-## 10. Risks
+## 11. Risks
 
 - **Vite path aliases** must be declared in three places (`tsconfig.json`,
   `tsconfig.app.json`, `vite.config.ts`), and the shadcn CLI needs

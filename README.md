@@ -201,6 +201,20 @@ would be the worst possible failure, since everything would otherwise look
 fine right up until a reload wiped it out. A short timeout still backs
 this up in case storage never responds at all.
 
+## Export
+
+The document header has an export menu next to the status pill, reachable
+by click or keyboard rather than only on hover. It offers three formats:
+**HTML** (a standalone file with inline styles mirroring the page's own
+typography, lossless), **PDF** (the same standalone HTML printed to PDF
+through the browser's own print dialog, so the text stays selectable),
+and **Markdown** (via Tiptap's official `@tiptap/markdown` serializer;
+text alignment has no Markdown equivalent and is dropped, and underline
+is written out as inline `<u>` HTML). Export runs entirely client-side
+from the live editor state, so it works offline and includes local edits
+that haven't synced yet, and the downloaded file is named after the
+document's title.
+
 ## Testing
 
 ```bash
@@ -244,112 +258,133 @@ the browser automation itself worked.
 
 ## Design
 
-The visual direction is a Google Docs *wireframe* with a Notion *surface*:
-from Docs, the page-on-a-field metaphor — a warm grey field with a white
-page floating on it, a hairline border, effectively no shadow; Notion has
-no equivalent structure, and it's the one idea worth borrowing from Docs.
-From Notion, the surface treatment — warm near-black text instead of pure
-black, borders at roughly 9% opacity, hover states as barely-there grey
-fills, small radii, chrome that recedes until you approach it. The document
-canvas itself is set in a serif face, which is inside Notion's own
-vocabulary (it ships a serif page mode) and is what visually separates the
-page from the sans-serif chrome around it.
+The idea behind the visual system is that everyone writes in their own ink.
+Each person's presence colour — hashed from their name into the eight-hue
+ramp in `apps/web/src/lib/colors.ts` — isn't only the colour their
+collaborators see on their remote cursor; it's also the accent colour their
+own interface is drawn in. On first load, `AppShell.tsx` sets that colour
+as the CSS custom property `--self` on `document.documentElement`, and
+every place in the app that means "this is mine" reads from it: pressed
+formatting toggles, focus outlines, the caret and text-selection colour
+inside the editor, the "syncing" dot in the status pill, and the "You"
+marker in the editors-list popover. The one deliberate exception is the
+text-alignment segmented control, which stays neutral (`toggle-group.tsx`
+gives its pressed state a plain page-coloured pill, not `--self`) because
+exactly one alignment option is always selected, and colouring it
+personally would say nothing. Document content — links included — never
+reads `--self` either, so the document itself looks the same to every
+reader, regardless of whose interface is drawing it.
 
-Every color and font size in the app comes from a single token
-layer defined as OKLCH custom properties in `apps/web/src/index.css`
-(eight font sizes, two type families). Spacing is Tailwind's built-in 4px
-scale, unmodified — there is no spacing token layer — and a handful of
-controls reach for off-scale half-steps (`gap-1.5`, `px-2.5`, and similar)
-where a whole 4px step would be visibly too tight or too loose; that's an
-accepted, deliberate exception to the 4px scale, not an oversight. Radius
-mostly follows the token layer too, but the remote-caret label keeps a
-literal `border-radius: 3px 3px 3px 0` — three rounded corners and one
-square — so its bottom-left corner sits flush against the caret it belongs
-to rather than floating off with a default corner; that's an asymmetric
-shape a token scale wouldn't express, and a deliberate exception.
-Components are not hand-tinted; they consume these tokens, and
-`apps/web/src/lib/colors.ts` is the one place outside that file allowed to
-hold a raw hex value, because the presence-color ramp needs to hand Tiptap
-literal hex strings.
+The palette underneath that is a handful of hex custom properties in
+`apps/web/src/index.css`: `--field` (#eceeed, a cool graphite, the desk
+behind the page — deliberately not the warm paper tone an earlier pass
+used), `--page` (#ffffff), `--ink` (#23272b), `--ink-muted` (#62696e —
+5.58:1 against the page, 4.79:1 against the field), `--hairline` (ink at
+11% opacity) and `--hover` (ink at 6%). Two accents sit alongside them:
+`--link` (#2e5e86, 6.86:1 on white) for document links, and `--danger`
+(#a2403a) for destructive actions. Connection status gets its own pair —
+`--state-ok` (#357050) and `--state-offline` (#9a5d14, shown on a
+dedicated `#f5ecdd` offline surface).
 
-That ramp is worth being precise about, because it's a specific, checkable
-claim rather than a vibe: the eight presence colors are hashed-into from a
-person's name, and when converted to OKLCH they hold **the same lightness
-(≈0.549–0.551) and the same chroma (≈0.093–0.094) across all eight**,
-varying only in hue, spread roughly evenly around the hue circle. All eight
-were verified against a white background and every one clears **WCAG AA
-for normal text (contrast ratio ≥ 4.5:1)**, with the lowest at 4.64:1 and
-the highest at 5.11:1. That combination is what the design intends by "no
-cursor reads louder than another" — no single presence color is darker,
-more saturated, or higher-contrast than its neighbors, so no one
+Type is two variable families, self-hosted via `@fontsource-variable`:
+Literata for the document title and body — a serif designed for long-form
+screen reading — and Hanken Grotesk for every piece of interface chrome.
+The scale is 12/14/16/20/28/40px, plus two purpose-built sizes outside
+that run: 17px for document prose and 11px for the small colour-flag label
+on a remote caret. The document title sits at 40px; inside the document,
+H1 is 28px, H2 is 20px, H3 is 17px at a heavier semibold weight. Prose runs
+at a 1.75 line-height with old-style figures
+(`font-variant-numeric: oldstyle-nums`), so numerals read like lowercase
+letters instead of like a form.
+
+Radius is three sizes only — 3px, 4px, 6px — and every larger step in
+Tailwind's default scale (`lg` through `4xl`) is clamped to 6px in the
+`@theme` block, so nothing in the app can round further than the largest
+radius the design actually uses. Elevation is two shadow tokens:
+`shadow-rail`, a hairline lift used under the page and the wide toolbar
+rail, and `shadow-overlay`, the heavier shadow used for menus, popovers,
+the selection bubble menu and toasts.
+
+The layout is a deliberate departure from a Docs-style silhouette rather
+than an imitation of one. The document header is slim and borderless — a
+back link to the documents list on the left, status, editors and export on
+the right — and the document's title lives on the page itself, not in a
+separate title bar. On screens at least 30rem (480px) wide, the formatting
+toolbar is a vertical tool rail that sits sticky beside the page, with
+tooltips on its right edge showing platform-aware shortcuts (⌘ on macOS,
+Ctrl elsewhere — see `lib/shortcuts.ts`). Below that width it becomes a
+single row above the page: undo, redo and text alignment move into its
+"More" menu so the core marks, link, headings and lists fit on most
+phones, and if the row still overflows it scrolls horizontally with a
+hidden scrollbar and a fade on whichever edge has more to show. The documents list is the wordmark, a 40px serif "Documents"
+heading, and the documents themselves grouped into Today / Yesterday /
+Earlier this week / Earlier as a hairline-ruled list rather than cards. The
+name screen shows a live preview of your own cursor flag, in your hashed
+colour, as you type your name.
+
+The wordmark and favicon are both two collaborator carets with name flags,
+drawn as inline SVG. The wordmark (`components/Wordmark.tsx`) uses two
+literal colours straight from the presence ramp; the favicon uses lighter
+tints of those same two hues, tuned to sit on its dark `#23272b` tile
+rather than on white.
+
+Components come from two tiers. Base UI primitives (`Button`, `Toggle`,
+`ToggleGroup`, `DropdownMenu`, `Popover`, `Tooltip`, `Input`, `Separator`,
+`Sonner`) sit in the shadcn file layout and are used for behaviour and
+accessibility, but every primitive's class list was rewritten against the
+app's own tokens — no zinc or stone Tailwind colours, no `dark:` variants,
+one shared focus treatment (a 2px `--self` outline, offset from the
+control; `Input` pairs a matching `--self` border with that outline rather
+than offsetting it, since its box has no room for one). shadcn's semantic
+variable names (`--popover`, `--muted`, `--accent`, and so on) are kept,
+but only as aliases that point at the app's own tokens rather than an
+independent palette. Two in-house compositions sit alongside them: the
+presence avatar stack and its editors-list popover (`AvatarStack.tsx`),
+the sync status pill (`StatusPill.tsx`), and the tool rail
+(`Toolbar.tsx`) — each small and specific enough that pulling in a
+third-party component would add more supply-chain surface than it would
+save. Nothing else was pulled in: none of the current Framer-Motion-driven
+marketing component registries fit a quiet editing surface, and the ones
+that could pass stylistically had installation or maintenance concerns
+that weren't worth taking on for a handful of components.
+
+That presence ramp is worth being precise about, because it's a specific,
+checkable claim rather than a vibe: the eight presence colors are
+hashed-into from a person's name, and when converted to OKLCH they hold
+**the same lightness (≈0.55) and the same chroma (≈0.094) across all
+eight**, varying only in hue, spread roughly evenly around the hue circle.
+All eight were verified against a white background and every one clears
+**WCAG AA for normal text (contrast ratio ≥ 4.5:1)**, with the lowest at
+4.64:1 and the highest at 5.11:1. That combination is what "everyone
+writes in their own ink" means in practice — no single presence colour is
+darker, more saturated, or higher-contrast than its neighbors, so no one
 collaborator's cursor visually dominates a document by chance.
 
-Components come from two tiers, and which tier a given component comes
-from is itself part of the design decision: **official shadcn primitives**
-(`Button`, `Toggle`, `Separator`, `DropdownMenu`, `Tooltip`, `Sonner`,
-`Input` — only the ones actually imported somewhere in `apps/web/src`),
-used as structure and interaction behavior with every shadcn default (the
-zinc palette, its default radius and shadows) overridden by the token
-layer; and two small **in-house compositions** — the presence avatar
-stack (`AvatarStack`, an overlapping row where the avatars themselves are
-plain, colored `div`s with a ring rather than the official `Avatar`
-primitive, though the stack does use the official `Tooltip` to show each
-participant's name on hover) and the sync status pill (`StatusPill`, a
-plain `span` plus a state dot with no primitive underneath) — because both
-are small, single-purpose pieces of markup where pulling in a third-party
-component (or composing an unrelated shadcn primitive just to reuse its
-class names) would add a supply-chain surface and someone else's
-conventions for no real benefit. Nothing else was pulled in: none of the
-current Framer-Motion-driven marketing component registries fit a quiet
-editing surface, and the ones that could pass stylistically had
-installation or maintenance concerns that weren't worth taking on for a
-handful of components.
+Spacing is Tailwind's built-in 4px scale, unmodified — there is no spacing
+token layer — and a handful of controls reach for off-scale half-steps
+(`gap-1.5`, `px-2.5`, and similar) where a whole 4px step would be visibly
+too tight or too loose; that's an accepted, deliberate exception to the
+4px scale, not an oversight.
 
 ### Responsive readiness
 
 Phone-specific layouts are out of scope for this submission (see below),
-but three constraints were observed from the start so that later phone
-work is a stylesheet pass rather than a rewrite: no control is reachable
-*only* by hovering (every hover-revealed affordance also has a toolbar
-button or menu entry); the formatting toolbar is built from day one as a
-wrapping group, not a fixed row; and layout uses no fixed pixel widths, so
-containers can shrink and flex/grid rows can wrap instead of forcing a
-horizontal scrollbar.
-
-Those specific claims were checked against a **genuine narrow viewport**,
-not a resized desktop browser window — this project's own history includes
-three earlier attempts that resized an OS window and had `window.innerWidth`
-silently stay at the original desktop width, which would have made any
-check meaningless. This time the check used Chrome's DevTools Protocol to
-launch a real headless Chromium instance with device-metrics emulation at
-320, 375, and 390 CSS pixels, confirmed by reading `window.innerWidth`
-inside the page itself. At every one of those widths, `document.documentElement.scrollWidth`
-never exceeded the viewport width — nothing scrolled horizontally. The
-formatting toolbar visibly wrapped into a second row once its buttons no
-longer fit one line (measured height going from 45px to 81px at 320px
-width, and confirmed with a screenshot). Opening the same document from six
-simultaneous browser sessions and viewing it from a 375px-wide seventh
-session showed the avatar stack correctly degrading to four avatars plus a
-"+2" badge rather than overflowing the header.
-
-Two things did **not** fully hold up under that same testing, and are
-recorded here rather than glossed over: the document header uses
-`flex-wrap` and never overflows, but under the content actually tested it
-never needed to break into a second line, because the title field is a
-flexible, shrinkable input that absorbs the squeeze by clipping its own
-text rather than by the row wrapping — which is arguably fine behavior, but
-it is not the same thing as "the header visibly wraps." And the page card
-keeps a small side margin and a visible border at every width tested rather
-than becoming truly edge-to-edge; it does not yet read as "full-bleed."
-Neither of these is a horizontal-scroll or clipping bug, and both are
-exactly the kind of thing the design spec calls a stylesheet-level follow-up
-rather than a restructure — but this README isn't claiming either behavior
-is finished, only that it was actually tested and here is precisely what
-was found.
+but the MVP was still built so that later phone work is a stylesheet pass
+rather than a rewrite: no control is reachable *only* by hovering — every
+hover-revealed affordance (a tooltip, a hover fill) is supplementary to a
+control that's already reachable by click or keyboard, and the
+editors-list popover in `AvatarStack.tsx` opens on click, not hover. The
+formatting toolbar never wraps; below the 30rem breakpoint it's a single
+row that moves its least-used controls into "More" and scrolls
+horizontally if it still has to (`Toolbar.tsx`), and the vertical tool
+rail is what that same toolbar becomes from 480px up, not a separate
+fallback. Layout still uses no fixed pixel widths:
+the avatar stack truncates to a `+N` badge once more than four people are
+present (`AvatarStack.tsx`), and containers are flex- and grid-based
+rather than pinned to a pixel measurement.
 
 No testing was done on physical phone hardware, and none of this
-substitutes for that — it's real-browser, real-viewport verification, not
-a device test.
+substitutes for that.
 
 ## What was deliberately left out
 
@@ -380,10 +415,9 @@ real-time sync, architecture, and design, in that order):
   toolbar arrangement, a true edge-to-edge canvas, touch-target sizing
   passed on real hardware — was never the goal of this submission and has
   not been done.
-- **Tables, image upload, export to other formats, document sharing
-  permissions, and deployment to a public URL.** None of these are
-  required by the brief, and each would draw time from the criteria that
-  are actually scored.
+- **Tables, image upload, document sharing permissions, and deployment to
+  a public URL.** None of these are required by the brief, and each
+  would draw time from the criteria that are actually scored.
 
 ## Clean-clone verification
 
