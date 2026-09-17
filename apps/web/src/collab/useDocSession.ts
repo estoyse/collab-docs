@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
-import type { PresenceUser } from '@collab-docs/shared'
+import { toast } from 'sonner'
+import { SCHEMA_MISMATCH_REASON, type PresenceUser } from '@collab-docs/shared'
 import {
   applyStatusChange,
   deriveConnectionState,
   type ConnectionInput,
   type ConnectionState,
 } from './connection.js'
+import { watchLocalReadiness } from './localReady.js'
+import { bindNetworkToProvider } from './network.js'
+import { trackPendingChanges } from './pendingChanges.js'
 import { createDocSession, type DocSession } from './session.js'
 
 const SERVER_URL = import.meta.env.VITE_COLLAB_URL ?? 'ws://localhost:3001'
+const LOCAL_READY_TIMEOUT_MS = 3000
+const SCHEMA_MISMATCH_TOAST_ID = 'schema-mismatch'
 
 export type DocSessionState = {
   session: DocSession | null
@@ -16,6 +22,16 @@ export type DocSessionState = {
   offlineStorageAvailable: boolean
   connection: ConnectionState
   pendingChanges: number
+  outdated: boolean
+}
+
+function showOutdatedToast(): void {
+  toast.error('This tab is running an older version', {
+    id: SCHEMA_MISMATCH_TOAST_ID,
+    description: 'Reload the page to keep editing with others. Your changes are saved on this device.',
+    duration: Infinity,
+    action: { label: 'Reload', onClick: () => window.location.reload() },
+  })
 }
 
 export function useDocSession(docId: string, user: PresenceUser): DocSessionState {
@@ -24,14 +40,18 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
   const [offlineStorageAvailable, setOfflineStorageAvailable] = useState(true)
   const [connection, setConnection] = useState<ConnectionState>('connecting')
   const [pendingChanges, setPendingChanges] = useState(0)
+  const [outdated, setOutdated] = useState(false)
+
+  const { name, color } = user
 
   useEffect(() => {
     let cancelled = false
-    const created = createDocSession({ docId, serverUrl: SERVER_URL, user })
+    const created = createDocSession({ docId, serverUrl: SERVER_URL, user: { name, color } })
+    const { provider } = created
 
     let input: ConnectionInput = {
-      status: 'connecting',
-      synced: false,
+      status: provider.configuration.websocketProvider.status,
+      synced: provider.synced,
       online: navigator.onLine,
     }
 
@@ -47,53 +67,67 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
     }
 
     const onSynced = ({ state }: { state: boolean }) => {
-      input.synced = state
+      input = { ...input, synced: state }
       publish()
     }
 
-    const onUnsynced = ({ number }: { number: number }) => {
+    provider.on('status', onStatus)
+    provider.on('synced', onSynced)
+
+    const unbindNetwork = bindNetworkToProvider(window, navigator, provider, (online) => {
+      input = { ...input, online }
+      publish()
+    })
+
+    const stopTrackingPending = trackPendingChanges(created.doc, provider, (pending) => {
       if (!cancelled) {
-        setPendingChanges(number)
+        setPendingChanges(pending)
       }
+    })
+
+    const onAuthenticationFailed = ({ reason }: { reason: string }) => {
+      if (reason !== SCHEMA_MISMATCH_REASON || cancelled) {
+        return
+      }
+
+      unbindNetwork()
+      provider.disconnect()
+      setOutdated(true)
+      showOutdatedToast()
     }
 
-    const onNetworkChange = () => {
-      input.online = navigator.onLine
-      publish()
-    }
+    provider.on('authenticationFailed', onAuthenticationFailed)
 
-    created.provider.on('status', onStatus)
-    created.provider.on('synced', onSynced)
-    created.provider.on('unsyncedChanges', onUnsynced)
-    window.addEventListener('online', onNetworkChange)
-    window.addEventListener('offline', onNetworkChange)
+    const stopWatchingLocal = watchLocalReadiness(
+      created.whenLocalLoaded,
+      LOCAL_READY_TIMEOUT_MS,
+      (readiness) => {
+        if (!cancelled) {
+          setReady(readiness.ready)
+          setOfflineStorageAvailable(readiness.offlineStorageAvailable)
+        }
+      },
+    )
 
     setSession(created)
     publish()
 
-    void created.whenLocalReady.then((available) => {
-      if (cancelled) {
-        return
-      }
-
-      setOfflineStorageAvailable(available)
-      setReady(true)
-    })
-
     return () => {
       cancelled = true
-      created.provider.off('status', onStatus)
-      created.provider.off('synced', onSynced)
-      created.provider.off('unsyncedChanges', onUnsynced)
-      window.removeEventListener('online', onNetworkChange)
-      window.removeEventListener('offline', onNetworkChange)
+      stopWatchingLocal()
+      stopTrackingPending()
+      unbindNetwork()
+      provider.off('status', onStatus)
+      provider.off('synced', onSynced)
+      provider.off('authenticationFailed', onAuthenticationFailed)
       created.destroy()
       setSession(null)
       setReady(false)
       setPendingChanges(0)
       setOfflineStorageAvailable(true)
+      setOutdated(false)
     }
-  }, [docId, user.name, user.color])
+  }, [docId, name, color])
 
-  return { session, ready, offlineStorageAvailable, connection, pendingChanges }
+  return { session, ready, offlineStorageAvailable, connection, pendingChanges, outdated }
 }

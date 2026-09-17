@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import type { PresenceUser } from '@collab-docs/shared'
 import type { DocSession } from '@/collab/session'
+
+export type PresenceEntry = PresenceUser & {
+  clientId: number
+  isSelf: boolean
+}
 
 function isPresenceUser(value: unknown): value is PresenceUser {
   return (
@@ -11,40 +16,66 @@ function isPresenceUser(value: unknown): value is PresenceUser {
   )
 }
 
-export function usePresence(session: DocSession | null): PresenceUser[] {
-  const [users, setUsers] = useState<PresenceUser[]>([])
+export function presenceEntries(
+  states: Map<number, Record<string, unknown>>,
+  selfClientId: number,
+): PresenceEntry[] {
+  const entries: PresenceEntry[] = []
 
-  useEffect(() => {
-    const awareness = session?.provider.awareness
+  for (const [clientId, state] of states) {
+    const user: unknown = state.user
 
-    if (!awareness) {
-      setUsers([])
-      return
+    if (isPresenceUser(user)) {
+      entries.push({
+        clientId,
+        name: user.name,
+        color: user.color,
+        isSelf: clientId === selfClientId,
+      })
     }
+  }
 
-    const update = () => {
-      const seen = new Set<string>()
-      const present: PresenceUser[] = []
+  return entries.sort(
+    (left, right) => Number(right.isSelf) - Number(left.isSelf) || left.clientId - right.clientId,
+  )
+}
 
-      for (const state of awareness.getStates().values()) {
-        const user: unknown = (state as { user?: unknown }).user
+const EMPTY: PresenceEntry[] = []
 
-        if (isPresenceUser(user) && !seen.has(user.name)) {
-          seen.add(user.name)
-          present.push(user)
-        }
+type AwarenessLike = NonNullable<DocSession['provider']['awareness']>
+
+function createPresenceStore(awareness: AwarenessLike | null) {
+  let snapshot = EMPTY
+
+  const read = () => {
+    snapshot = awareness ? presenceEntries(awareness.getStates(), awareness.clientID) : EMPTY
+  }
+
+  read()
+
+  return {
+    subscribe(onChange: () => void) {
+      if (!awareness) {
+        return () => {}
       }
 
-      setUsers(present)
-    }
+      const update = () => {
+        read()
+        onChange()
+      }
 
-    update()
-    awareness.on('change', update)
+      read()
+      awareness.on('change', update)
 
-    return () => {
-      awareness.off('change', update)
-    }
-  }, [session])
+      return () => awareness.off('change', update)
+    },
+    getSnapshot: () => snapshot,
+  }
+}
 
-  return users
+export function usePresence(session: DocSession | null): PresenceEntry[] {
+  const awareness = session?.provider.awareness ?? null
+  const store = useMemo(() => createPresenceStore(awareness), [awareness])
+
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
 }

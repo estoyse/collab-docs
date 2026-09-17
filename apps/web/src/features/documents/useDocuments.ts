@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DocumentSummary } from '@collab-docs/shared'
+import { loadCachedDocuments, saveCachedDocuments } from '@/lib/documentsCache'
 
 function throwForResponse(response: Response): never {
   throw Object.assign(new Error(`Request failed with ${response.status}`), {
@@ -12,12 +13,18 @@ function statusOf(error: unknown): number | undefined {
   return typeof status === 'number' ? status : undefined
 }
 
-function describeLoadFailure(error: unknown): string {
+export function describeLoadFailure(error: unknown, showingSavedList: boolean): string {
   const status = statusOf(error)
 
-  return status
-    ? `The server responded with an error (${status}). Showing nothing for now.`
-    : 'Could not reach the server. Showing nothing for now.'
+  if (status) {
+    return showingSavedList
+      ? `The server responded with an error (${status}). Showing the last list saved on this device.`
+      : `The server responded with an error (${status}). Please try again later.`
+  }
+
+  return showingSavedList
+    ? 'Could not reach the server. Showing the last list saved on this device. Reconnect to refresh.'
+    : 'Could not reach the server. Reconnect to see your documents.'
 }
 
 function describeCreateFailure(error: unknown): string {
@@ -33,11 +40,16 @@ function describeCreateFailure(error: unknown): string {
 }
 
 export function useDocuments() {
-  const [documents, setDocuments] = useState<DocumentSummary[]>([])
+  const [initialDocuments] = useState(loadCachedDocuments)
+  const [documents, setDocuments] = useState<DocumentSummary[]>(initialDocuments ?? [])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const hasList = useRef(initialDocuments !== null)
+  const latestRequest = useRef(0)
 
   const refresh = useCallback(() => {
+    const request = latestRequest.current + 1
+    latestRequest.current = request
     setLoading(true)
 
     fetch('/api/documents')
@@ -49,14 +61,34 @@ export function useDocuments() {
         return response.json() as Promise<DocumentSummary[]>
       })
       .then((data) => {
+        if (request !== latestRequest.current) {
+          return
+        }
+
+        hasList.current = true
+        saveCachedDocuments(data)
         setDocuments(data)
         setError(null)
       })
-      .catch((error: unknown) => setError(describeLoadFailure(error)))
-      .finally(() => setLoading(false))
+      .catch((error: unknown) => {
+        if (request === latestRequest.current) {
+          setError(describeLoadFailure(error, hasList.current))
+        }
+      })
+      .finally(() => {
+        if (request === latestRequest.current) {
+          setLoading(false)
+        }
+      })
   }, [])
 
-  useEffect(refresh, [refresh])
+  useEffect(() => {
+    refresh()
+
+    return () => {
+      latestRequest.current += 1
+    }
+  }, [refresh])
 
   useEffect(() => {
     window.addEventListener('focus', refresh)

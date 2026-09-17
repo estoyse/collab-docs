@@ -1,41 +1,53 @@
-import { useCallback, useEffect, useState } from 'react'
-import * as Y from 'yjs'
+import { useCallback, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import type * as Y from 'yjs'
 
-export function applyTextDiff(ytext: Y.Text, next: string): void {
-  const current = ytext.toString()
+export type TextSplice = {
+  start: number
+  end: number
+  text: string
+}
 
-  if (current === next) {
-    return
+export type TextDeltaOp = {
+  insert?: unknown
+  retain?: number
+  delete?: number
+}
+
+export function spliceBetween(from: string, to: string): TextSplice | null {
+  if (from === to) {
+    return null
   }
 
   let start = 0
 
-  while (start < current.length && start < next.length && current[start] === next[start]) {
+  while (start < from.length && start < to.length && from[start] === to[start]) {
     start += 1
   }
 
-  let endCurrent = current.length
-  let endNext = next.length
+  let endFrom = from.length
+  let endTo = to.length
 
-  while (
-    endCurrent > start &&
-    endNext > start &&
-    current[endCurrent - 1] === next[endNext - 1]
-  ) {
-    endCurrent -= 1
-    endNext -= 1
+  while (endFrom > start && endTo > start && from[endFrom - 1] === to[endTo - 1]) {
+    endFrom -= 1
+    endTo -= 1
   }
 
-  const write = () => {
-    if (endCurrent > start) {
-      ytext.delete(start, endCurrent - start)
-    }
+  return { start, end: endFrom, text: to.slice(start, endTo) }
+}
 
-    if (endNext > start) {
-      ytext.insert(start, next.slice(start, endNext))
-    }
+function mapInsertionPoint(position: number, remote: TextSplice): number {
+  if (position <= remote.start) {
+    return position
   }
 
+  if (position >= remote.end) {
+    return position + remote.text.length - (remote.end - remote.start)
+  }
+
+  return remote.start + remote.text.length
+}
+
+function transact(ytext: Y.Text, write: () => void): void {
   if (ytext.doc) {
     ytext.doc.transact(write)
   } else {
@@ -43,36 +55,114 @@ export function applyTextDiff(ytext: Y.Text, next: string): void {
   }
 }
 
+export function applyTextDiff(ytext: Y.Text, next: string, base?: string): void {
+  const current = ytext.toString()
+  const local = spliceBetween(base ?? current, next)
+
+  if (!local) {
+    return
+  }
+
+  const remote = base === undefined ? null : spliceBetween(base, current)
+  const shift = remote ? remote.text.length - (remote.end - remote.start) : 0
+  const deletions: Array<[number, number]> = []
+
+  if (!remote) {
+    if (local.end > local.start) {
+      deletions.push([local.start, local.end])
+    }
+  } else {
+    if (local.start < Math.min(local.end, remote.start)) {
+      deletions.push([local.start, Math.min(local.end, remote.start)])
+    }
+
+    if (Math.max(local.start, remote.end) < local.end) {
+      deletions.push([Math.max(local.start, remote.end) + shift, local.end + shift])
+    }
+  }
+
+  const insertAt = Math.min(remote ? mapInsertionPoint(local.start, remote) : local.start, current.length)
+
+  transact(ytext, () => {
+    for (const [from, to] of deletions.reverse()) {
+      const clampedTo = Math.min(to, ytext.length)
+
+      if (clampedTo > from) {
+        ytext.delete(from, clampedTo - from)
+      }
+    }
+
+    if (local.text) {
+      ytext.insert(Math.min(insertAt, ytext.length), local.text)
+    }
+  })
+}
+
+export function mapIndexThroughDelta(index: number, delta: TextDeltaOp[]): number {
+  let oldPosition = 0
+  let mapped = index
+
+  for (const op of delta) {
+    if (oldPosition > index) {
+      break
+    }
+
+    if (op.retain !== undefined) {
+      oldPosition += op.retain
+    } else if (op.delete !== undefined) {
+      if (oldPosition >= index) {
+        break
+      }
+
+      mapped -= Math.min(op.delete, index - oldPosition)
+      oldPosition += op.delete
+    } else if (op.insert !== undefined) {
+      if (oldPosition >= index) {
+        break
+      }
+
+      mapped += typeof op.insert === 'string' ? op.insert.length : 1
+    }
+  }
+
+  return mapped
+}
+
 export function useYText(
   doc: Y.Doc | null,
   key: string,
 ): [string, (next: string) => void] {
-  const [value, setValue] = useState('')
+  const ytext = useMemo(() => doc?.getText(key) ?? null, [doc, key])
 
-  useEffect(() => {
-    if (!doc) {
-      setValue('')
-      return
-    }
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (!ytext) {
+        return () => {}
+      }
 
-    const ytext = doc.getText(key)
-    const update = () => setValue(ytext.toString())
+      const observer = () => onChange()
+      ytext.observe(observer)
 
-    update()
-    ytext.observe(update)
+      return () => ytext.unobserve(observer)
+    },
+    [ytext],
+  )
 
-    return () => {
-      ytext.unobserve(update)
-    }
-  }, [doc, key])
+  const getSnapshot = useCallback(() => ytext?.toString() ?? '', [ytext])
+  const value = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+  const displayed = useRef(value)
+
+  useLayoutEffect(() => {
+    displayed.current = value
+  }, [value])
 
   const set = useCallback(
     (next: string) => {
-      if (doc) {
-        applyTextDiff(doc.getText(key), next)
+      if (ytext) {
+        applyTextDiff(ytext, next, displayed.current)
       }
     },
-    [doc, key],
+    [ytext],
   )
 
   return [value, set]

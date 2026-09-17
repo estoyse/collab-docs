@@ -2,26 +2,15 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import * as Y from 'yjs'
 import type { PresenceUser } from '@collab-docs/shared'
+import { withSchemaVersion } from './serverUrl.js'
 
-const LOCAL_READY_TIMEOUT_MS = 3000
+export type LocalPersistenceOutcome = 'loaded' | 'unavailable'
 
 export type DocSession = {
   doc: Y.Doc
   provider: HocuspocusProvider
-  whenLocalReady: Promise<boolean>
+  whenLocalLoaded: Promise<LocalPersistenceOutcome>
   destroy(): void
-}
-
-function createLocalPersistence(docId: string, doc: Y.Doc): IndexeddbPersistence | null {
-  if (typeof indexedDB === 'undefined') {
-    return null
-  }
-
-  try {
-    return new IndexeddbPersistence(`collab-docs:${docId}`, doc)
-  } catch {
-    return null
-  }
 }
 
 function probeIndexedDb(): Promise<boolean> {
@@ -53,28 +42,27 @@ export function createDocSession(options: {
 }): DocSession {
   const { docId, serverUrl, user } = options
   const doc = new Y.Doc()
+  let localPersistence: IndexeddbPersistence | null = null
+  let destroyed = false
 
-  const storageProbe = probeIndexedDb()
-  const localPersistence = createLocalPersistence(docId, doc)
-
-  const whenLocalReady: Promise<boolean> = Promise.race([
-    storageProbe.then((storageWorks) => {
-      if (!storageWorks || !localPersistence) {
-        return false
+  const whenLocalLoaded = probeIndexedDb().then(
+    (storageWorks): LocalPersistenceOutcome | Promise<LocalPersistenceOutcome> => {
+      if (!storageWorks || destroyed) {
+        return 'unavailable'
       }
 
-      return localPersistence.whenSynced.then(
-        () => true,
-        () => false,
-      )
-    }),
-    new Promise<boolean>((resolve) => {
-      setTimeout(() => resolve(false), LOCAL_READY_TIMEOUT_MS)
-    }),
-  ])
+      try {
+        localPersistence = new IndexeddbPersistence(`collab-docs:${docId}`, doc)
+      } catch {
+        return 'unavailable'
+      }
+
+      return localPersistence.whenSynced.then(() => 'loaded')
+    },
+  )
 
   const provider = new HocuspocusProvider({
-    url: serverUrl,
+    url: withSchemaVersion(serverUrl),
     name: docId,
     document: doc,
   })
@@ -84,9 +72,10 @@ export function createDocSession(options: {
   return {
     doc,
     provider,
-    whenLocalReady,
+    whenLocalLoaded,
 
     destroy() {
+      destroyed = true
       provider.destroy()
       localPersistence?.destroy().catch((error: unknown) => {
         console.error('Failed to close local persistence', error)
