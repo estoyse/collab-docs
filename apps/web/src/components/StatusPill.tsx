@@ -1,3 +1,5 @@
+import { Cloud, CloudAlert, CloudCheck, CloudOff, CloudUpload } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { ConnectionState } from '@/collab/connection'
 
 const LABELS: Record<ConnectionState, string> = {
@@ -7,11 +9,18 @@ const LABELS: Record<ConnectionState, string> = {
   offline: 'Offline',
 }
 
-const DOT_CLASSES: Record<ConnectionState, string> = {
-  connecting: 'bg-ink-muted motion-safe:animate-pulse',
-  syncing: 'bg-self motion-safe:animate-pulse',
-  synced: 'bg-state-ok',
-  offline: 'bg-state-offline',
+const ICONS: Record<ConnectionState, LucideIcon> = {
+  connecting: Cloud,
+  syncing: CloudUpload,
+  synced: CloudCheck,
+  offline: CloudOff,
+}
+
+const ICON_CLASSES: Record<ConnectionState, string> = {
+  connecting: 'text-ink-muted motion-safe:animate-breathe',
+  syncing: 'text-self motion-safe:animate-nudge',
+  synced: 'text-state-ok motion-safe:animate-settle',
+  offline: 'text-state-offline',
 }
 
 const PENDING_LABEL = 'changes waiting to sync'
@@ -28,30 +37,21 @@ export function StatusPill({
 }) {
   if (outdated) {
     return (
-      <span
-        role="status"
-        className="flex shrink-0 items-center gap-2 text-sm text-danger"
-        title={OUTDATED_HINT}
-      >
-        <span aria-hidden className="size-2 rounded-full bg-danger" />
-        Outdated
+      <span role="status" className="flex shrink-0 items-center" title={OUTDATED_HINT}>
+        <CloudAlert aria-hidden className="size-4 text-danger" />
+        <span className="sr-only">Outdated. {OUTDATED_HINT}</span>
       </span>
     )
   }
 
+  const Icon = ICONS[state]
   const showPending = state === 'offline' && pendingChanges > 0
+  const label = showPending ? `${LABELS[state]}, ${pendingChanges} ${PENDING_LABEL}` : LABELS[state]
 
   return (
-    <span
-      role="status"
-      className="flex shrink-0 items-center gap-2 text-sm text-ink-muted"
-      title={showPending ? `Offline, ${PENDING_LABEL}` : undefined}
-    >
-      <span aria-hidden className={`size-2 rounded-full ${DOT_CLASSES[state]}`} />
-      <span className={state === 'offline' ? 'text-state-offline' : undefined}>
-        {LABELS[state]}
-        {showPending && <span className="hidden sm:inline">, {PENDING_LABEL}</span>}
-      </span>
+    <span role="status" className="flex shrink-0 items-center" title={label}>
+      <Icon key={state} aria-hidden className={`size-4 ${ICON_CLASSES[state]}`} />
+      <span className="sr-only">{label}</span>
     </span>
   )
 }
