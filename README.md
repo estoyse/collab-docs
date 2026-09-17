@@ -316,7 +316,12 @@ Ctrl elsewhere — see `lib/shortcuts.ts`). Below that width it becomes a
 single row above the page: undo, redo and text alignment move into its
 "More" menu so the core marks, link, headings and lists fit on most
 phones, and if the row still overflows it scrolls horizontally with a
-hidden scrollbar and a fade on whichever edge has more to show. The documents list is the wordmark, a 40px serif "Documents"
+hidden scrollbar and a fade on whichever edge has more to show. On phones
+the row is only shown while you are editing: it slides in when the text
+has focus and slides away when you tap out to read, keyed to focus rather
+than scroll direction so it never fights the browser scrolling the caret
+into view while you type (menus, the link popover and keyboard focus
+inside the row keep it open). The documents list is the wordmark, a 40px serif "Documents"
 heading, and the documents themselves grouped into Today / Yesterday /
 Earlier this week / Earlier as a hairline-ruled list rather than cards. The
 name screen shows a live preview of your own cursor flag, in your hashed

@@ -304,7 +304,9 @@ Constraints observed from the start:
   the rail still leaves roughly 45 characters per line. Below that it is
   a single row: undo, redo and alignment move into its "More" menu, and
   any remaining overflow scrolls horizontally behind a hidden scrollbar
-  with an edge fade. The rail is the default layout, not a fallback.
+  with an edge fade. The row appears only while the document has focus
+  (or one of its menus is open), so reading on a phone gets the full
+  screen. The rail is the default layout, not a fallback.
 - **No fixed pixel widths in layout.** The presence stack truncates to
   `+N`; flex and grid rows are used throughout rather than pixel-pinned
   containers.

@@ -20,14 +20,21 @@ export function LinkControl({
   size = 'default',
   tooltipSide,
   popoverSide = 'bottom',
+  onOpenChange,
 }: {
   editor: Editor
   active: boolean
   size?: 'default' | 'sm'
   tooltipSide?: 'right' | 'bottom' | 'top'
   popoverSide?: 'right' | 'bottom'
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
+
+  const setOpen = (next: boolean) => {
+    setOpenState(next)
+    onOpenChange?.(next)
+  }
   const [url, setUrl] = useState('')
 
   useEffect(() => {

@@ -113,11 +113,47 @@ function edgeMask({ start, end }: OverflowEdges): string {
   return EDGE_MASKS.none!
 }
 
+const BLUR_GRACE_MS = 150
+
+function useEditorFocus(editor: Editor): boolean {
+  const [focused, setFocused] = useState(() => editor.isFocused)
+
+  useEffect(() => {
+    let timer: number | undefined
+
+    const onFocus = () => {
+      window.clearTimeout(timer)
+      setFocused(true)
+    }
+
+    const onBlur = () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => setFocused(false), BLUR_GRACE_MS)
+    }
+
+    editor.on('focus', onFocus)
+    editor.on('blur', onBlur)
+
+    return () => {
+      window.clearTimeout(timer)
+      editor.off('focus', onFocus)
+      editor.off('blur', onBlur)
+    }
+  }, [editor])
+
+  return focused
+}
+
 export function Toolbar({ editor }: { editor: Editor }) {
   const wide = useMediaQuery(WIDE_LAYOUT_QUERY)
   const side: TooltipSide = wide ? 'right' : 'bottom'
   const scroller = useRef<HTMLDivElement>(null)
   const edges = useOverflowEdges(scroller, !wide)
+  const editorFocused = useEditorFocus(editor)
+  const [focusWithin, setFocusWithin] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const shown = wide || editorFocused || focusWithin || menuOpen || linkOpen
 
   const active = useEditorState({
     editor,
@@ -139,155 +175,168 @@ export function Toolbar({ editor }: { editor: Editor }) {
   )
 
   return (
-    <div className="sticky top-0 z-10 -mx-4 bg-field/90 py-2 backdrop-blur xs:top-6 xs:mx-0 xs:self-start xs:rounded-md xs:border xs:border-hairline xs:bg-page xs:p-1 xs:shadow-rail xs:backdrop-blur-none">
+    <div
+      onFocus={() => setFocusWithin(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setFocusWithin(false)
+        }
+      }}
+      className="sticky top-0 z-10 -mx-4 h-0 xs:top-6 xs:mx-0 xs:h-auto xs:self-start"
+    >
       <div
-        ref={scroller}
-        role="toolbar"
-        aria-label="Formatting"
-        aria-orientation={wide ? 'vertical' : 'horizontal'}
-        className={`flex items-center gap-0.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xs:max-h-[calc(100vh-3.5rem)] xs:flex-col xs:overflow-x-visible xs:overflow-y-auto xs:px-0 ${edgeMask(edges)}`}
+        className={`absolute inset-x-0 top-0 bg-field/90 py-2 backdrop-blur transition-[translate,opacity] duration-200 ease-out motion-reduce:transition-none xs:static xs:rounded-md xs:border xs:border-hairline xs:bg-page xs:p-1 xs:shadow-rail xs:backdrop-blur-none ${shown ? '' : 'pointer-events-none -translate-y-full opacity-0'}`}
       >
-        {wide && (
-          <>
-            <ToolbarTooltip label="Undo" shortcut="Mod-z" side={side}>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Undo"
-                className="text-ink-muted hover:text-ink"
-                onClick={() => editor.chain().focus().undo().run()}
-              >
-                <Undo2 />
-              </Button>
-            </ToolbarTooltip>
-            <ToolbarTooltip label="Redo" shortcut="Mod-Shift-z" side={side}>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Redo"
-                className="text-ink-muted hover:text-ink"
-                onClick={() => editor.chain().focus().redo().run()}
-              >
-                <Redo2 />
-              </Button>
-            </ToolbarTooltip>
-
-            <ToolbarDivider />
-          </>
-        )}
-
-        {visible.map((command) => (
-          <Fragment key={command.id}>
-            {VISIBLE_GROUP_STARTS.has(command.id) && <ToolbarDivider />}
-            {command.id === 'link' ? (
-              <LinkControl
-                editor={editor}
-                active={active[command.id] ?? false}
-                size="sm"
-                tooltipSide={side}
-                popoverSide={wide ? 'right' : 'bottom'}
-              />
-            ) : (
-              <ToolbarTooltip label={command.label} shortcut={command.shortcut} side={side}>
-                <Toggle
-                  size="sm"
-                  pressed={active[command.id]}
-                  onPressedChange={() => command.run(editor)}
-                  aria-label={command.label}
-                >
-                  <command.icon className="size-4" />
-                </Toggle>
-              </ToolbarTooltip>
-            )}
-          </Fragment>
-        ))}
-
-        {wide && (
-          <>
-            <ToolbarDivider />
-            <ToggleGroup
-              aria-label="Text alignment"
-              orientation="vertical"
-              className="shrink-0 flex-col"
-              value={[alignment]}
-              onValueChange={([next]) => next && setTextAlignment(editor, next)}
-            >
-              {TEXT_ALIGNMENTS.map(({ value, label, icon: Icon, shortcut }) => (
-                <ToolbarTooltip key={value} label={label} shortcut={shortcut} side={side}>
-                  <ToggleGroupItem value={value} aria-label={label}>
-                    <Icon className="size-4" />
-                  </ToggleGroupItem>
-                </ToolbarTooltip>
-              ))}
-            </ToggleGroup>
-          </>
-        )}
-
-        <ToolbarDivider />
-        <DropdownMenu>
-          <ToolbarTooltip label="More formatting" side={side}>
-            <DropdownMenuTrigger
-              render={
+        <div
+          ref={scroller}
+          role="toolbar"
+          aria-label="Formatting"
+          aria-orientation={wide ? 'vertical' : 'horizontal'}
+          className={`flex items-center gap-0.5 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xs:max-h-[calc(100vh-3.5rem)] xs:flex-col xs:overflow-x-visible xs:overflow-y-auto xs:px-0 ${edgeMask(edges)}`}
+        >
+          {wide && (
+            <>
+              <ToolbarTooltip label="Undo" shortcut="Mod-z" side={side}>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="More formatting"
-                  className="shrink-0 text-ink-muted hover:text-ink"
-                />
-              }
-            >
-              <MoreHorizontal />
-            </DropdownMenuTrigger>
-          </ToolbarTooltip>
-          <DropdownMenuContent side={wide ? 'right' : 'bottom'} align="start" className="w-56">
-            {!wide && (
-              <>
-                <DropdownMenuItem onClick={() => editor.chain().focus().undo().run()}>
+                  aria-label="Undo"
+                  className="text-ink-muted hover:text-ink"
+                  onClick={() => editor.chain().focus().undo().run()}
+                >
                   <Undo2 />
-                  Undo
-                  <DropdownMenuShortcut>{formatShortcut('Mod-z')}</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => editor.chain().focus().redo().run()}>
+                </Button>
+              </ToolbarTooltip>
+              <ToolbarTooltip label="Redo" shortcut="Mod-Shift-z" side={side}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Redo"
+                  className="text-ink-muted hover:text-ink"
+                  onClick={() => editor.chain().focus().redo().run()}
+                >
                   <Redo2 />
-                  Redo
-                  <DropdownMenuShortcut>{formatShortcut('Mod-Shift-z')}</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            {overflow.map((command, index) => (
-              <Fragment key={command.id}>
-                {index > 0 && OVERFLOW_GROUP_STARTS.has(command.id) && <DropdownMenuSeparator />}
-                <DropdownMenuItem onClick={() => command.run(editor)}>
-                  <command.icon />
-                  {command.label}
-                  {command.shortcut && (
-                    <DropdownMenuShortcut>{formatShortcut(command.shortcut)}</DropdownMenuShortcut>
-                  )}
-                </DropdownMenuItem>
-              </Fragment>
-            ))}
-            {!wide && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Alignment</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={alignment}
-                    onValueChange={(next: TextAlignment) => setTextAlignment(editor, next)}
+                </Button>
+              </ToolbarTooltip>
+
+              <ToolbarDivider />
+            </>
+          )}
+
+          {visible.map((command) => (
+            <Fragment key={command.id}>
+              {VISIBLE_GROUP_STARTS.has(command.id) && <ToolbarDivider />}
+              {command.id === 'link' ? (
+                <LinkControl
+                  editor={editor}
+                  active={active[command.id] ?? false}
+                  size="sm"
+                  tooltipSide={side}
+                  popoverSide={wide ? 'right' : 'bottom'}
+                  onOpenChange={setLinkOpen}
+                />
+              ) : (
+                <ToolbarTooltip label={command.label} shortcut={command.shortcut} side={side}>
+                  <Toggle
+                    size="sm"
+                    pressed={active[command.id]}
+                    onPressedChange={() => command.run(editor)}
+                    aria-label={command.label}
                   >
-                    {TEXT_ALIGNMENTS.map(({ value, label, icon: Icon }) => (
-                      <DropdownMenuRadioItem key={value} value={value}>
-                        <Icon />
-                        {label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                    <command.icon className="size-4" />
+                  </Toggle>
+                </ToolbarTooltip>
+              )}
+            </Fragment>
+          ))}
+
+          {wide && (
+            <>
+              <ToolbarDivider />
+              <ToggleGroup
+                aria-label="Text alignment"
+                orientation="vertical"
+                className="shrink-0 flex-col"
+                value={[alignment]}
+                onValueChange={([next]) => next && setTextAlignment(editor, next)}
+              >
+                {TEXT_ALIGNMENTS.map(({ value, label, icon: Icon, shortcut }) => (
+                  <ToolbarTooltip key={value} label={label} shortcut={shortcut} side={side}>
+                    <ToggleGroupItem value={value} aria-label={label}>
+                      <Icon className="size-4" />
+                    </ToggleGroupItem>
+                  </ToolbarTooltip>
+                ))}
+              </ToggleGroup>
+            </>
+          )}
+
+          <ToolbarDivider />
+          <DropdownMenu onOpenChange={setMenuOpen}>
+            <ToolbarTooltip label="More formatting" side={side}>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="More formatting"
+                    className="shrink-0 text-ink-muted hover:text-ink"
+                  />
+                }
+              >
+                <MoreHorizontal />
+              </DropdownMenuTrigger>
+            </ToolbarTooltip>
+            <DropdownMenuContent side={wide ? 'right' : 'bottom'} align="start" className="w-56">
+              {!wide && (
+                <>
+                  <DropdownMenuItem onClick={() => editor.chain().focus().undo().run()}>
+                    <Undo2 />
+                    Undo
+                    <DropdownMenuShortcut>{formatShortcut('Mod-z')}</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => editor.chain().focus().redo().run()}>
+                    <Redo2 />
+                    Redo
+                    <DropdownMenuShortcut>{formatShortcut('Mod-Shift-z')}</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              {overflow.map((command, index) => (
+                <Fragment key={command.id}>
+                  {index > 0 && OVERFLOW_GROUP_STARTS.has(command.id) && <DropdownMenuSeparator />}
+                  <DropdownMenuItem onClick={() => command.run(editor)}>
+                    <command.icon />
+                    {command.label}
+                    {command.shortcut && (
+                      <DropdownMenuShortcut>{formatShortcut(command.shortcut)}</DropdownMenuShortcut>
+                    )}
+                  </DropdownMenuItem>
+                </Fragment>
+              ))}
+              {!wide && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Alignment</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={alignment}
+                      onValueChange={(next: TextAlignment) => setTextAlignment(editor, next)}
+                    >
+                      {TEXT_ALIGNMENTS.map(({ value, label, icon: Icon }) => (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                          <Icon />
+                          {label}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   )
