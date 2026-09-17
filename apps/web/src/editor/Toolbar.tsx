@@ -12,7 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Toggle } from '@/components/ui/toggle'
-import { ALWAYS_VISIBLE_COMMAND_IDS, FORMAT_COMMANDS } from './commands'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import {
+  ALWAYS_VISIBLE_COMMAND_IDS,
+  FORMAT_COMMANDS,
+  TEXT_ALIGNMENTS,
+  activeTextAlignment,
+  setTextAlignment,
+} from './commands'
 import { LinkControl } from './LinkControl'
 
 const VISIBLE_GROUP_STARTS = new Set(['link', 'h1', 'bullet'])
@@ -25,6 +32,10 @@ export function Toolbar({ editor }: { editor: Editor }) {
       Object.fromEntries(
         FORMAT_COMMANDS.map((command) => [command.id, command.isActive(instance)]),
       ),
+  })
+  const alignment = useEditorState({
+    editor,
+    selector: ({ editor: instance }) => activeTextAlignment(instance),
   })
 
   const visible = FORMAT_COMMANDS.filter((command) =>
@@ -39,7 +50,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
       <div className="mx-auto flex w-full max-w-[46rem] flex-wrap items-center gap-1 px-4 py-1.5 sm:px-8">
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         aria-label="Undo"
         onClick={() => editor.chain().focus().undo().run()}
       >
@@ -47,7 +58,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
       </Button>
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-sm"
         aria-label="Redo"
         onClick={() => editor.chain().focus().redo().run()}
       >
@@ -76,10 +87,24 @@ export function Toolbar({ editor }: { editor: Editor }) {
         </Fragment>
       ))}
 
+      <Separator orientation="vertical" className="mx-1 h-5" />
+
+      <ToggleGroup
+        aria-label="Text alignment"
+        value={[alignment]}
+        onValueChange={([next]) => next && setTextAlignment(editor, next)}
+      >
+        {TEXT_ALIGNMENTS.map(({ value, label, icon: Icon }) => (
+          <ToggleGroupItem key={value} value={value} aria-label={label}>
+            <Icon className="size-4" />
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+
       {overflow.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" aria-label="More formatting" />}
+            render={<Button variant="ghost" size="icon-sm" aria-label="More formatting" />}
           >
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>

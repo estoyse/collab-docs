@@ -1,5 +1,9 @@
 import type { Editor } from '@tiptap/core'
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   Bold,
   Code,
   Heading1,
@@ -143,3 +147,20 @@ export const ALWAYS_VISIBLE_COMMAND_IDS = [
 ]
 
 export const SELECTION_COMMAND_IDS = ['bold', 'italic', 'underline', 'strike', 'code', 'link']
+
+export type TextAlignment = 'left' | 'center' | 'right' | 'justify'
+
+export const TEXT_ALIGNMENTS: { value: TextAlignment; label: string; icon: LucideIcon }[] = [
+  { value: 'left', label: 'Align left', icon: AlignLeft },
+  { value: 'center', label: 'Align center', icon: AlignCenter },
+  { value: 'right', label: 'Align right', icon: AlignRight },
+  { value: 'justify', label: 'Justify', icon: AlignJustify },
+]
+
+export function activeTextAlignment(editor: Editor): TextAlignment {
+  return TEXT_ALIGNMENTS.find(({ value }) => editor.isActive({ textAlign: value }))?.value ?? 'left'
+}
+
+export function setTextAlignment(editor: Editor, alignment: TextAlignment) {
+  void editor.chain().focus().setTextAlign(alignment).run()
+}
