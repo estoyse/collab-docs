@@ -1,7 +1,7 @@
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import * as Y from 'yjs'
-import type { PresenceUser } from '@collab-docs/shared'
+import type { PresenceUser } from '@/lib/identity'
 import { withSchemaVersion } from './serverUrl.js'
 
 export type LocalPersistenceOutcome = 'loaded' | 'unavailable'

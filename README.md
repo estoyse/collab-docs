@@ -89,7 +89,7 @@ Both persistence layers observe the same `Y.Doc`, so there is no hand-written lo
 | `apps/server/src/app.ts` | Express app: health check, documents routes, JSON 400/404/500 |
 | `apps/server/src/collab/` | Hocuspocus server, connect checks, persistence hooks, title/excerpt extraction |
 | `apps/server/src/documents/`, `db.ts` | REST router, SQLite document store, schema and migration |
-| `packages/shared` | Client/server contract: types, schema version, document id pattern, title rules |
+| `packages/shared` | Client/server contract: summary type, Yjs field names, schema version, title rule |
 
 ### Offline and sync flow
 

@@ -1,5 +1,9 @@
-import type { PresenceUser } from '@collab-docs/shared'
 import { colorForName } from './colors.js'
+
+export type PresenceUser = {
+  name: string
+  color: string
+}
 
 const STORAGE_KEY = 'collab-docs:identity'
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/

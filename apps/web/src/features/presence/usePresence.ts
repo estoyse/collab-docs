@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react'
-import type { PresenceUser } from '@collab-docs/shared'
+import type { PresenceUser } from '@/lib/identity'
 import type { DocSession } from '@/collab/session'
 
 export type PresenceEntry = PresenceUser & {

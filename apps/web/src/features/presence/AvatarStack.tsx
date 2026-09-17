@@ -1,4 +1,4 @@
-import type { PresenceUser } from '@collab-docs/shared'
+import type { PresenceUser } from '@/lib/identity'
 import { cn } from 'cn'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
