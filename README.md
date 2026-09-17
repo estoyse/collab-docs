@@ -5,7 +5,7 @@ open the same document, see each other's cursors and edits appear instantly,
 and keep working through a lost connection — edits made offline are never
 lost and merge back in automatically once the connection returns. The stack
 is a React client, a single Node server that speaks both plain REST and the
-Yjs sync protocol, and SQLite for storage.
+Yjs sync protocol, and libSQL (SQLite) for storage.
 
 This document explains how to run the project, how it is put together, why
 the specific tools were chosen, what "offline" actually means here, and what
@@ -13,9 +13,10 @@ was deliberately left out.
 
 ## Running it
 
-**Prerequisites:** Node 22.12 or newer (`better-sqlite3` requires Node 22,
-Vite 8 requires 22.12 on that line, and the integration tests use Node's
-built-in `WebSocket`) and [pnpm](https://pnpm.io) — this was
+**Prerequisites:** Node 22.12 or newer (Vite 8 requires 22.12 on that line,
+and the integration tests use Node's built-in `WebSocket`; `@libsql/client`
+itself declares no `engines` floor — it ships prebuilt native binaries as
+per-platform optional dependencies) and [pnpm](https://pnpm.io) — this was
 built and tested against pnpm 11.9.0. The project is a pnpm workspace with
 three packages: `apps/web` (the client), `apps/server` (the API and sync
 server), and `packages/shared` (types shared across the wire).
@@ -41,32 +42,42 @@ both to see live collaboration.
 
 | Variable | Read by | Default |
 | --- | --- | --- |
-| `VITE_COLLAB_URL` | `apps/web/src/collab/useDocSession.ts` | `ws://localhost:3001` |
-| `PORT` | `apps/server/src/index.ts` | `3001` |
-| `DATABASE_PATH` | `apps/server/src/index.ts` | `data/documents.db` |
+| `VITE_API_URL` | `apps/web/src/lib/api.ts` | empty — REST calls go to a relative `/api`, which Vite's dev server proxies to `http://localhost:3001` |
+| `VITE_COLLAB_URL` | `apps/web/src/lib/api.ts` | derived from `VITE_API_URL` (`http:`→`ws:`, `https:`→`wss:`); `ws://localhost:3001` when `VITE_API_URL` is also empty |
+| `PORT` | `apps/server/src/index.ts` | `3001` (the Docker image sets `8000`) |
+| `DATABASE_URL` | `apps/server/src/index.ts` | `file:data/documents.db`; a `libsql://…` URL points at Turso in production |
+| `DATABASE_AUTH_TOKEN` | `apps/server/src/index.ts` | unset — required alongside a `libsql://` `DATABASE_URL`, ignored for `file:` URLs |
+| `CORS_ORIGIN` | `apps/server/src/origins.ts` | unset — no cross-origin HTTP access, and the WebSocket origin check is disabled; otherwise a comma-separated list of exact allowed origins |
 
-`DATABASE_PATH` is resolved relative to the server process's working
-directory, so with the default it ends up at `apps/server/data/documents.db`
-when started with `pnpm -F @collab-docs/server dev`. The file is a plain
-SQLite database (WAL mode); delete it to start over. Both `data/` and `*.db`
-are gitignored.
+The default `DATABASE_URL`, `file:data/documents.db`, is resolved relative
+to the server process's working directory, so it ends up at
+`apps/server/data/documents.db` when started with
+`pnpm -F @collab-docs/server dev`. It's a plain SQLite file opened in WAL
+mode; delete it to start over. Both `data/` and `*.db` are gitignored.
+Pointing `DATABASE_URL` at a `libsql://…` Turso database, with
+`DATABASE_AUTH_TOKEN` set, makes the same client talk to a remote database
+instead — see [docs/deploy.md](docs/deploy.md).
 
 **Tests and type-checking:**
 
 ```bash
-pnpm test        # runs every workspace's tests — 150 tests across 22 files
+pnpm test        # runs every workspace's tests — 175 tests across 25 files
 pnpm typecheck    # runs tsc across every workspace
 ```
 
-**On the native dependency.** `pnpm install` does not need a C/C++
-toolchain. The only native dependency, `better-sqlite3`, ships prebuilt
-Node-API binaries inside its own package for the common platforms
-(linux/darwin/win32 × x64/arm64), and its `binding.gyp` checks
-`prebuild_exists` before building anything. pnpm still runs an implicit
-`node-gyp rebuild` step (the package has no explicit `install` script), but
-it compiles nothing once a prebuild matches. Separately, `pnpm-workspace.yaml`
-pre-approves the two packages with install/build scripts (`better-sqlite3`,
-`esbuild`) via `allowBuilds`, so pnpm doesn't stop to ask either.
+**Building for production:** `pnpm -F @collab-docs/server build` bundles
+the server with esbuild (`apps/server/build.mjs`) into
+`apps/server/dist/index.js`; `pnpm -F @collab-docs/server start` runs that
+bundle. This is what the Docker image and `docs/deploy.md` use — see
+"Deployment" below.
+
+**On native dependencies.** `pnpm install` does not need a C/C++ toolchain.
+`@libsql/client` depends on `libsql`, which ships prebuilt native bindings
+as per-platform optional dependencies (`@libsql/linux-x64-gnu`,
+`@libsql/darwin-arm64`, and so on) with no install/build script of its own,
+so pnpm never has anything to run for it. The only package
+`pnpm-workspace.yaml` still needs to pre-approve via `allowBuilds` is
+`esbuild` (used by `apps/server/build.mjs`), so pnpm doesn't stop to ask.
 
 ## Try it: two users + offline
 
@@ -126,7 +137,7 @@ here, so no extra setup is needed.
 ```
 collab-docs/
 ├── apps/web/         React + Vite client
-├── apps/server/      Express + Hocuspocus + SQLite, one process
+├── apps/server/      Express + Hocuspocus + libSQL, one process
 └── packages/shared/  The client/server contract (DocumentSummary, Yjs field names, schema version)
 ```
 
@@ -158,8 +169,10 @@ unsupported client schema versions, `onRequest` delegates to Express so
 REST and Yjs sync share one port, and the `Database` extension's
 `fetch`/`store` hooks log-and-rethrow rather than swallow failures.
 `collab/title.ts` derives a title/excerpt from the document's
-`Y.XmlFragment`. `documents/` is the REST router and SQLite-backed
-`DocumentStore`; `db.ts` opens and migrates the schema.
+`Y.XmlFragment`. `documents/` is the REST router and the async,
+libSQL-backed `DocumentStore`; `db.ts` opens the database and migrates the
+schema; `origins.ts` parses the `CORS_ORIGIN` allowlist and is shared by
+the Express CORS middleware and the Hocuspocus `onConnect` origin check.
 `test/collabHarness.ts` starts a real Hocuspocus server and real
 `HocuspocusProvider` clients in-process for the integration tests.
 
@@ -195,7 +208,8 @@ browser IndexedDB             Hocuspocus server
  collab-docs:<docId>)           debounces persistence, 1-5s)
                                      │
                                      ▼
-                               SQLite (better-sqlite3)
+                               libSQL (SQLite file in dev,
+                                       Turso in production)
                                documents.state — Yjs blob
                                + title/excerpt — derived, for listing
 ```
@@ -207,14 +221,14 @@ state. Offline, edits accumulate in the local `Y.Doc` and IndexedDB; on
 reconnect, client and server exchange Yjs state vectors and each sends only
 what the other is missing. Nothing anywhere picks a "winner" by timestamp.
 
-**What's stored where.** SQLite holds one row per document: the Yjs state
-as a binary blob, plus `title`/`excerpt` columns derived from it purely so
-the list has something cheap to query — their source of truth is still the
-Yjs document. IndexedDB mirrors the same update log per document in the
-browser. `localStorage` holds the user's name/colour and a cached copy of
-the last documents list, for viewing offline. Presence rides the provider
-as Yjs "awareness" state and is never persisted — it's ephemeral, so
-offline you correctly see only yourself.
+**What's stored where.** The libSQL database holds one row per document:
+the Yjs state as a binary blob, plus `title`/`excerpt` columns derived from
+it purely so the list has something cheap to query — their source of truth
+is still the Yjs document. IndexedDB mirrors the same update log per
+document in the browser. `localStorage` holds the user's name/colour and a
+cached copy of the last documents list, for viewing offline. Presence rides
+the provider as Yjs "awareness" state and is never persisted — it's
+ephemeral, so offline you correctly see only yourself.
 
 **Error handling, summarized.** A WebSocket drop never blocks editing — the
 status pill and a toast are the only signal. An unavailable IndexedDB is
@@ -266,16 +280,23 @@ and — for keeping this a one-process deployment — it owns the HTTP server
 and invokes Express through its `onRequest` hook, so REST and Yjs sync
 share one port with no reverse proxy in front.
 
-**SQLite via `better-sqlite3`**, rather than Postgres: a Yjs document, once
-encoded, is an opaque binary blob — a relational database buys nothing when
-the payload has no internal structure a query would touch, so one file on
-disk is the right amount of infrastructure, and one state blob plus two
-derived columns is the entire schema. `better-sqlite3` over Node's built-in
-`node:sqlite`, because the latter needs an experimental flag on Node 22 and
-would fail outright on an older supported runtime — a submission needs to
-run wherever it's cloned. It ships prebuilt Node-API binaries, so despite
-being native it costs no compiler or `node-gyp` step to install (see
-"Running it" above).
+**The SQLite dialect, via `@libsql/client`**, rather than Postgres: a Yjs
+document, once encoded, is an opaque binary blob — a relational database
+buys nothing when the payload has no internal structure a query would
+touch, so one state blob plus two derived columns is still the entire
+schema. What changed on this branch is the driver, not the data model:
+`@libsql/client` speaks the same SQL over a local file (or an in-memory
+database, which is what the unit tests use) in development, and over a
+hosted Turso database in production, with no code difference between the
+two — only `DATABASE_URL`/`DATABASE_AUTH_TOKEN` change. That switch is
+purely a hosting decision: Koyeb's free instance has no persistent disk, so
+a SQLite file written at runtime wouldn't survive a redeploy or a
+scale-to-zero cycle, and Turso is libSQL itself — the same file format and
+dialect, just replicated and reachable over the network, so the "one file
+is enough infrastructure" reasoning above still holds. (Earlier in this
+project's history the server talked to a local SQLite file directly through
+`better-sqlite3`; that stopped being an option once the production target
+lost a writable disk.)
 
 ## Export
 
@@ -297,9 +318,9 @@ is named after the document's title.
 pnpm test
 ```
 
-runs 150 tests across 22 files: 99 in `apps/web` (14 files) and 51 in
-`apps/server` (8 files); `packages/shared` has no tests of its own since it
-holds only types and constants.
+runs 175 tests across 25 files: 108 in `apps/web` (15 files) and 67 in
+`apps/server` (10 files); `packages/shared` has no tests of its own since
+it holds only types and constants.
 
 **The tests that matter most for the graded offline/merge criterion:**
 
@@ -324,8 +345,9 @@ text-diff/rebase behind concurrent renames, pending-change counting,
 local-readiness gating, name→colour hashing and identity persistence, the
 documents-list cache, presence-state derivation, export filename/HTML/
 Markdown rendering, and, on the server, title/excerpt extraction,
-schema/document-id validation, the REST routes, and the SQLite store
-including its column migration.
+schema/document-id validation, the CORS allowlist and WebSocket origin
+check (`origins.test.ts`, `origin.integration.test.ts`), the REST routes,
+and the libSQL-backed store including its column migration.
 
 **Browser end-to-end tests are deliberately not part of this suite.** The
 two scenarios that matter most — live editing and offline-edit-then-
@@ -414,6 +436,23 @@ Spacing is Tailwind's built-in 4px scale, unmodified, with a handful of
 off-scale half-steps (`gap-1.5`, `px-2.5`) where a full step reads too
 tight or loose, and no fixed pixel widths anywhere in layout.
 
+## Deployment
+
+This branch (`deploy/koyeb-cloudflare`) holds the hosting-specific changes
+needed to run collab-docs on a public URL: the libSQL/Turso database driver
+described above, a CORS allowlist and WebSocket origin check
+(`apps/server/src/origins.ts`), an esbuild bundle for the server
+(`apps/server/build.mjs`), a root `Dockerfile` for Koyeb, and Cloudflare
+Workers static-asset config for the client (`apps/web/wrangler.jsonc`,
+`apps/web/public/_headers`). None of it changes local development —
+`pnpm dev` still runs both processes against a local SQLite file with no
+CORS restriction.
+
+See [docs/deploy.md](docs/deploy.md) for the full runbook: provisioning
+Turso, deploying the server to Koyeb, deploying the client to Cloudflare
+Workers, wiring `CORS_ORIGIN` between them, and checking a production build
+locally.
+
 ## Known limitations
 
 None of the following are missing by oversight; each is a conscious
@@ -448,8 +487,16 @@ gap:
 - **No dedicated phone layout pass or hardware testing**, though the
   responsive toolbar behaviour above is real and works on a narrow browser
   viewport.
-- **Comments, version history, tables, image upload, and deployment to a
-  public URL** are not implemented — none are required by the brief.
+- **Comments, version history, tables, and image upload** are not
+  implemented — none are required by the brief.
+- **Deployment has real-world caveats**, documented in full in
+  [docs/deploy.md](docs/deploy.md): Koyeb's free instance scales to zero
+  after about an hour idle, so the first request after that takes 1–5
+  seconds to wake it; it's a single instance, so the scaling limitation
+  above applies in production too; `CORS_ORIGIN` must list every frontend
+  origin that needs to reach the API, including Cloudflare preview-deploy
+  URLs, or those origins are silently blocked; and both Koyeb's and Turso's
+  free tiers have usage limits.
 - **Browser end-to-end tests are deliberately excluded** — see "Testing"
   above for why the integration tests are stronger evidence for the same
   scenarios.
