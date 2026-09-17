@@ -158,6 +158,28 @@
   --shadow-rail: 0 1px 2px rgb(35 39 43 / 0.05);
 }
 
+@theme {
+  --animate-breathe: breathe 2.6s ease-in-out infinite;
+  --animate-nudge: nudge 1.8s ease-in-out infinite;
+  --animate-settle: settle 320ms ease-out 1;
+
+  @keyframes breathe {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes nudge {
+    0%, 100% { transform: translateY(0); opacity: 0.75; }
+    50% { transform: translateY(-1.5px); opacity: 1; }
+  }
+
+  @keyframes settle {
+    0% { transform: scale(0.85); opacity: 0; }
+    60% { transform: scale(1.04); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
