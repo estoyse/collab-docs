@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DocumentSummary } from '@collab-docs/shared'
+import { apiUrl } from '@/lib/api'
 import { loadCachedDocuments, saveCachedDocuments } from '@/lib/documentsCache'
 
 function throwForResponse(response: Response): never {
@@ -52,7 +53,7 @@ export function useDocuments() {
     latestRequest.current = request
     setLoading(true)
 
-    fetch('/api/documents')
+    fetch(apiUrl('/api/documents'))
       .then((response) => {
         if (!response.ok) {
           throwForResponse(response)
@@ -97,7 +98,7 @@ export function useDocuments() {
 
   const create = useCallback(async (): Promise<DocumentSummary | null> => {
     try {
-      const response = await fetch('/api/documents', {
+      const response = await fetch(apiUrl('/api/documents'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),

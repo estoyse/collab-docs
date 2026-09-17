@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { SCHEMA_MISMATCH_REASON } from '@collab-docs/shared'
+import { collabUrl } from '@/lib/api'
 import type { PresenceUser } from '@/lib/identity'
 import {
   applyStatusChange,
@@ -13,7 +14,6 @@ import { bindNetworkToProvider } from './network.js'
 import { trackPendingChanges } from './pendingChanges.js'
 import { createDocSession, type DocSession } from './session.js'
 
-const SERVER_URL = import.meta.env.VITE_COLLAB_URL ?? 'ws://localhost:3001'
 const LOCAL_READY_TIMEOUT_MS = 3000
 const SCHEMA_MISMATCH_TOAST_ID = 'schema-mismatch'
 
@@ -47,7 +47,7 @@ export function useDocSession(docId: string, user: PresenceUser): DocSessionStat
 
   useEffect(() => {
     let cancelled = false
-    const created = createDocSession({ docId, serverUrl: SERVER_URL, user: { name, color } })
+    const created = createDocSession({ docId, serverUrl: collabUrl, user: { name, color } })
     const { provider } = created
 
     let input: ConnectionInput = {

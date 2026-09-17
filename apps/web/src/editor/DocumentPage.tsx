@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { ChevronLeft } from 'lucide-react'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import { toast } from 'sonner'
+import { apiUrl } from '@/lib/api'
 import type { PresenceUser } from '@/lib/identity'
 import { buttonVariants } from '@/components/ui/button'
 import { StatusPill } from '@/components/StatusPill'
@@ -25,7 +26,7 @@ function useDocumentExistence(docId: string): Existence {
     let cancelled = false
     setExistence('checking')
 
-    fetch(`/api/documents/${docId}`)
+    fetch(apiUrl(`/api/documents/${docId}`))
       .then((response) => {
         if (cancelled) {
           return

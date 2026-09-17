@@ -13,6 +13,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2,svg}'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//],
       },
       manifest: {
         name: 'Collab Docs',
