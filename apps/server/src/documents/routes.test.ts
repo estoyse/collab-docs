@@ -1,14 +1,12 @@
-import Database from 'better-sqlite3'
 import express from 'express'
 import request from 'supertest'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { applySchema } from '../db.js'
+import { openDatabase } from '../db.js'
 import { createDocumentStore } from './store.js'
 import { createDocumentsRouter } from './routes.js'
 
-function createApp() {
-  const db = new Database(':memory:')
-  applySchema(db)
+async function createApp() {
+  const db = await openDatabase({ url: ':memory:' })
   const app = express()
   app.use(express.json())
   app.use('/api/documents', createDocumentsRouter(createDocumentStore(db)))
@@ -19,8 +17,8 @@ function createApp() {
 describe('documents API', () => {
   let app: express.Express
 
-  beforeEach(() => {
-    app = createApp()
+  beforeEach(async () => {
+    app = await createApp()
   })
 
   it('returns an empty list initially', async () => {

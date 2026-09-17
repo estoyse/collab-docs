@@ -1,4 +1,4 @@
-import express, { type ErrorRequestHandler } from 'express'
+import express, { type ErrorRequestHandler, type RequestHandler } from 'express'
 import type { DocumentStore } from './documents/store.js'
 import { createDocumentsRouter } from './documents/routes.js'
 
@@ -26,9 +26,46 @@ const handleErrors: ErrorRequestHandler = (error, request, response, next) => {
   response.status(500).json({ error: 'Internal server error' })
 }
 
-export function createApp(store: DocumentStore): express.Express {
+function allowCrossOrigin(allowedOrigins: readonly string[]): RequestHandler {
+  const allowed = new Set(allowedOrigins)
+
+  return (request, response, next) => {
+    if (allowed.size === 0) {
+      next()
+      return
+    }
+
+    response.vary('Origin')
+
+    const { origin } = request.headers
+
+    if (!origin || !allowed.has(origin)) {
+      next()
+      return
+    }
+
+    response.setHeader('Access-Control-Allow-Origin', origin)
+
+    if (request.method !== 'OPTIONS') {
+      next()
+      return
+    }
+
+    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.setHeader('Access-Control-Allow-Headers', 'content-type')
+    response.setHeader('Access-Control-Max-Age', '600')
+    response.status(204).end()
+  }
+}
+
+export type AppOptions = {
+  allowedOrigins?: readonly string[]
+}
+
+export function createApp(store: DocumentStore, options: AppOptions = {}): express.Express {
   const app = express()
 
+  app.use(allowCrossOrigin(options.allowedOrigins ?? []))
   app.use(express.json())
   app.get('/api/health', (_request, response) => {
     response.json({ ok: true })

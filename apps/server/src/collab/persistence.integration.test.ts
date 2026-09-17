@@ -13,8 +13,8 @@ import {
   waitFor,
 } from '../test/collabHarness.js'
 
-function storedDoc(store: DocumentStore, name: string): Y.Doc | null {
-  const state = store.loadState(name)
+async function storedDoc(store: DocumentStore, name: string): Promise<Y.Doc | null> {
+  const state = await store.loadState(name)
 
   if (!state) {
     return null
@@ -26,8 +26,12 @@ function storedDoc(store: DocumentStore, name: string): Y.Doc | null {
   return doc
 }
 
-function storeMatches(store: DocumentStore, name: string, expected: Y.Doc): boolean {
-  const doc = storedDoc(store, name)
+async function storeMatches(
+  store: DocumentStore,
+  name: string,
+  expected: Y.Doc,
+): Promise<boolean> {
+  const doc = await storedDoc(store, name)
 
   if (!doc) {
     return false
@@ -52,8 +56,8 @@ describe('document persistence', { timeout: 15000 }, () => {
 
   it('restores body and title after a server restart on the same database', async () => {
     const name = 'restart'
-    const databasePath = harness.tempDatabasePath()
-    const firstServer = await harness.startServer(databasePath)
+    const databaseUrl = harness.tempDatabaseUrl()
+    const firstServer = await harness.startServer(databaseUrl)
     const author = harness.connect(firstServer, name)
     await waitFor(() => isSynced(author), 5000, 'initial sync')
 
@@ -65,7 +69,7 @@ describe('document persistence', { timeout: 15000 }, () => {
     })
 
     await waitFor(
-      () => isSynced(author) && storeMatches(firstServer.store, name, author.doc),
+      async () => isSynced(author) && (await storeMatches(firstServer.store, name, author.doc)),
       8000,
       'store to contain the edits',
     )
@@ -74,7 +78,7 @@ describe('document persistence', { timeout: 15000 }, () => {
     const expectedTitle = titleText(author.doc)
     const expectedExcerpt = 'First line [p-1]\nSecond line [p-2]'
 
-    expect(firstServer.store.get(name)).toMatchObject({
+    expect(await firstServer.store.get(name)).toMatchObject({
       id: name,
       title: 'Persisted title',
       excerpt: expectedExcerpt,
@@ -83,7 +87,7 @@ describe('document persistence', { timeout: 15000 }, () => {
     author.destroy()
     await firstServer.stop()
 
-    const secondServer = await harness.startServer(databasePath)
+    const secondServer = await harness.startServer(databaseUrl)
     const reader = harness.connect(secondServer, name)
     await waitFor(
       () => isSynced(reader) && bodyText(reader.doc) === expectedBody,
@@ -93,15 +97,15 @@ describe('document persistence', { timeout: 15000 }, () => {
 
     expect(titleText(reader.doc)).toBe(expectedTitle)
     expect(reader.doc.getXmlFragment(DOC_BODY_FIELD).length).toBe(2)
-    expect(secondServer.store.list()).toEqual([
+    expect(await secondServer.store.list()).toEqual([
       expect.objectContaining({ id: name, title: 'Persisted title', excerpt: expectedExcerpt }),
     ])
   })
 
   it('flushes edits still inside the debounce window on graceful shutdown', async () => {
     const name = 'graceful-shutdown'
-    const databasePath = harness.tempDatabasePath()
-    const firstServer = await harness.startServer(databasePath)
+    const databaseUrl = harness.tempDatabaseUrl()
+    const firstServer = await harness.startServer(databaseUrl)
     const author = harness.connect(firstServer, name)
     const observer = harness.connect(firstServer, name)
     await waitFor(() => isSynced(author) && isSynced(observer), 5000, 'initial sync')
@@ -124,11 +128,11 @@ describe('document persistence', { timeout: 15000 }, () => {
     firstServer.server.hocuspocus.flushPendingStores()
     await firstServer.stop()
 
-    const secondServer = await harness.startServer(databasePath)
+    const secondServer = await harness.startServer(databaseUrl)
     const reader = harness.connect(secondServer, name)
     await waitFor(() => isSynced(reader), 5000, 'reader sync')
 
     expect(bodyText(reader.doc)).toBe(expectedBody)
-    expect(secondServer.store.get(name)?.title).toBe('[inside-debounce]before')
+    expect((await secondServer.store.get(name))?.title).toBe('[inside-debounce]before')
   })
 })

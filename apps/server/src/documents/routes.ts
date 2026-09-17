@@ -5,11 +5,11 @@ import type { DocumentStore } from './store.js'
 export function createDocumentsRouter(store: DocumentStore): Router {
   const router = Router()
 
-  router.get('/', (_request, response) => {
-    response.json(store.list())
+  router.get('/', async (_request, response) => {
+    response.json(await store.list())
   })
 
-  router.get('/:id', (request, response) => {
+  router.get('/:id', async (request, response) => {
     const { id } = request.params
 
     if (!DOCUMENT_ID_PATTERN.test(id)) {
@@ -17,7 +17,7 @@ export function createDocumentsRouter(store: DocumentStore): Router {
       return
     }
 
-    const document = store.get(id)
+    const document = await store.get(id)
 
     if (!document) {
       response.status(404).json({ error: 'Document not found' })
@@ -27,8 +27,8 @@ export function createDocumentsRouter(store: DocumentStore): Router {
     response.json(document)
   })
 
-  router.post('/', (_request, response) => {
-    response.status(201).json(store.create())
+  router.post('/', async (_request, response) => {
+    response.status(201).json(await store.create())
   })
 
   return router

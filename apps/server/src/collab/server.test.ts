@@ -1,5 +1,4 @@
 import * as Y from 'yjs'
-import Database from 'better-sqlite3'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DOC_BODY_FIELD,
@@ -8,7 +7,7 @@ import {
   SCHEMA_MISMATCH_REASON,
   SCHEMA_VERSION_PARAMETER,
 } from '@collab-docs/shared'
-import { applySchema } from '../db.js'
+import { openDatabase, type Db } from '../db.js'
 import { createDocumentStore, type DocumentStore } from '../documents/store.js'
 import * as title from './title.js'
 import {
@@ -63,18 +62,18 @@ describe('assertValidDocumentName', () => {
 })
 
 describe('createPersistenceHooks', () => {
-  let db: Database.Database
+  let db: Db
   let store: DocumentStore
 
-  beforeEach(() => {
-    db = new Database(':memory:')
-    applySchema(db)
+  beforeEach(async () => {
+    db = await openDatabase({ url: ':memory:' })
     store = createDocumentStore(db)
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
+    db.close()
   })
 
   function docWithContent(titleText: string, paragraphs: string[]): Y.Doc {
@@ -98,7 +97,7 @@ describe('createPersistenceHooks', () => {
 
     await hooks.store({ documentName: 'doc-1', state, document: doc })
 
-    expect(store.get('doc-1')).toMatchObject({ title: 'Plan', excerpt: 'First line' })
+    expect(await store.get('doc-1')).toMatchObject({ title: 'Plan', excerpt: 'First line' })
     expect(await hooks.fetch({ documentName: 'doc-1' })).toEqual(state)
   })
 
@@ -106,7 +105,7 @@ describe('createPersistenceHooks', () => {
     const failure = new Error('database is locked')
     const hooks = createPersistenceHooks({
       ...store,
-      loadState: () => {
+      loadState: async () => {
         throw failure
       },
     })
@@ -119,7 +118,7 @@ describe('createPersistenceHooks', () => {
     const failure = new Error('disk full')
     const hooks = createPersistenceHooks({
       ...store,
-      saveState: () => {
+      saveState: async () => {
         throw failure
       },
     })
@@ -133,7 +132,7 @@ describe('createPersistenceHooks', () => {
 
   it('keeps the previous title and excerpt when extraction fails', async () => {
     const hooks = createPersistenceHooks(store)
-    store.saveState('doc-1', new Uint8Array([0, 0]), 'Old title', 'Old excerpt')
+    await store.saveState('doc-1', new Uint8Array([0, 0]), 'Old title', 'Old excerpt')
     vi.spyOn(title, 'extractTitle').mockImplementation(() => {
       throw new Error('malformed body')
     })
@@ -145,8 +144,8 @@ describe('createPersistenceHooks', () => {
 
     await hooks.store({ documentName: 'doc-1', state, document: doc })
 
-    expect(store.get('doc-1')).toMatchObject({ title: 'Old title', excerpt: 'Old excerpt' })
-    expect(store.loadState('doc-1')).toEqual(state)
+    expect(await store.get('doc-1')).toMatchObject({ title: 'Old title', excerpt: 'Old excerpt' })
+    expect(await store.loadState('doc-1')).toEqual(state)
   })
 
   it('falls back to the default title and an empty excerpt for a new document', async () => {
@@ -161,6 +160,6 @@ describe('createPersistenceHooks', () => {
 
     await hooks.store({ documentName: 'doc-2', state: Y.encodeStateAsUpdate(doc), document: doc })
 
-    expect(store.get('doc-2')).toMatchObject({ title: 'Untitled', excerpt: '' })
+    expect(await store.get('doc-2')).toMatchObject({ title: 'Untitled', excerpt: '' })
   })
 })

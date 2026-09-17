@@ -7,9 +7,11 @@ import {
   DOC_SCHEMA_VERSION,
   SCHEMA_MISMATCH_REASON,
   SCHEMA_VERSION_PARAMETER,
+  type DocumentSummary,
 } from '@collab-docs/shared'
 import { DOCUMENT_ID_PATTERN } from '../documents/documentId.js'
 import type { DocumentStore } from '../documents/store.js'
+import { assertAllowedOrigin } from '../origins.js'
 import { extractExcerpt, extractTitle } from './title.js'
 
 export function assertSupportedClient(parameters: URLSearchParams): void {
@@ -26,12 +28,12 @@ export function assertValidDocumentName(documentName: string): void {
   }
 }
 
-function extractOrFallback(
+async function extractOrFallback(
   documentName: string,
   field: string,
   extract: () => string,
-  fallback: () => string,
-): string {
+  fallback: () => Promise<string>,
+): Promise<string> {
   try {
     return extract()
   } catch (error) {
@@ -44,7 +46,7 @@ export function createPersistenceHooks(store: DocumentStore) {
   return {
     fetch: async ({ documentName }: { documentName: string }): Promise<Uint8Array | null> => {
       try {
-        return store.loadState(documentName)
+        return await store.loadState(documentName)
       } catch (error) {
         console.error(`Failed to load document "${documentName}"`, error)
         throw error
@@ -61,21 +63,22 @@ export function createPersistenceHooks(store: DocumentStore) {
       document: Y.Doc
     }): Promise<void> => {
       try {
-        const previous = () => store.get(documentName)
-        const title = extractOrFallback(
+        let previous: Promise<DocumentSummary | null> | undefined
+        const loadPrevious = () => (previous ??= store.get(documentName))
+        const title = await extractOrFallback(
           documentName,
           'title',
           () => extractTitle(document),
-          () => previous()?.title ?? DEFAULT_DOCUMENT_TITLE,
+          async () => (await loadPrevious())?.title ?? DEFAULT_DOCUMENT_TITLE,
         )
-        const excerpt = extractOrFallback(
+        const excerpt = await extractOrFallback(
           documentName,
           'excerpt',
           () => extractExcerpt(document),
-          () => previous()?.excerpt ?? '',
+          async () => (await loadPrevious())?.excerpt ?? '',
         )
 
-        store.saveState(documentName, new Uint8Array(state), title, excerpt)
+        await store.saveState(documentName, new Uint8Array(state), title, excerpt)
       } catch (error) {
         console.error(`Failed to store document "${documentName}"`, error)
         throw error
@@ -88,8 +91,9 @@ export function createCollabServer(options: {
   store: DocumentStore
   port: number
   app: express.Express
+  allowedOrigins?: readonly string[]
 }): Server {
-  const { store, port, app } = options
+  const { store, port, app, allowedOrigins = [] } = options
 
   return new Server({
     port,
@@ -100,7 +104,8 @@ export function createCollabServer(options: {
 
     extensions: [new Database(createPersistenceHooks(store))],
 
-    onConnect: async ({ documentName, requestParameters }) => {
+    onConnect: async ({ documentName, requestHeaders, requestParameters }) => {
+      assertAllowedOrigin(requestHeaders.get('origin'), allowedOrigins)
       assertValidDocumentName(documentName)
       assertSupportedClient(requestParameters)
     },

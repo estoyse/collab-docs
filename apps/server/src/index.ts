@@ -1,21 +1,42 @@
-import { openDatabase } from './db.js'
+import { openDatabase, type Db } from './db.js'
 import { createDocumentStore } from './documents/store.js'
 import { createApp } from './app.js'
 import { createCollabServer } from './collab/server.js'
+import { parseAllowedOrigins } from './origins.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
-const DATABASE_PATH = process.env.DATABASE_PATH ?? 'data/documents.db'
-const SHUTDOWN_TIMEOUT_MS = 5000
+const DATABASE_URL = process.env.DATABASE_URL || 'file:data/documents.db'
+const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN || undefined
+const ALLOWED_ORIGINS = parseAllowedOrigins(process.env.CORS_ORIGIN)
+const SHUTDOWN_TIMEOUT_MS = 20_000
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled promise rejection', reason)
 })
 
-const db = openDatabase(DATABASE_PATH)
-const store = createDocumentStore(db)
-store.backfillExcerpts()
+let db: Db
 
-const collab = createCollabServer({ store, port: PORT, app: createApp(store) })
+try {
+  db = await openDatabase({ url: DATABASE_URL, authToken: DATABASE_AUTH_TOKEN })
+} catch (error) {
+  console.error(`Failed to open the database at ${DATABASE_URL}`, error)
+  process.exit(1)
+}
+
+const store = createDocumentStore(db)
+
+try {
+  await store.backfillExcerpts()
+} catch (error) {
+  console.error('Failed to backfill document excerpts', error)
+}
+
+const collab = createCollabServer({
+  store,
+  port: PORT,
+  app: createApp(store, { allowedOrigins: ALLOWED_ORIGINS }),
+  allowedOrigins: ALLOWED_ORIGINS,
+})
 
 function describeListenError(error: unknown): string {
   const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : null
@@ -49,7 +70,7 @@ try {
   process.exit(1)
 }
 
-console.log(`collab-docs server listening on http://localhost:${PORT}`)
+console.log(`collab-docs server listening on port ${collab.address.port}`)
 
 let shuttingDown = false
 

@@ -1,60 +1,56 @@
 import * as Y from 'yjs'
+import type { InStatement, Row, Value } from '@libsql/client'
 import { DEFAULT_DOCUMENT_TITLE, type DocumentSummary } from '@collab-docs/shared'
 import type { Db } from '../db.js'
 import { extractExcerpt } from '../collab/title.js'
 
 export type DocumentStore = {
-  list(): DocumentSummary[]
-  create(): DocumentSummary
-  get(id: string): DocumentSummary | null
-  loadState(id: string): Uint8Array | null
-  saveState(id: string, state: Uint8Array, title: string, excerpt: string): void
-  backfillExcerpts(): number
+  list(): Promise<DocumentSummary[]>
+  create(): Promise<DocumentSummary>
+  get(id: string): Promise<DocumentSummary | null>
+  loadState(id: string): Promise<Uint8Array | null>
+  saveState(id: string, state: Uint8Array, title: string, excerpt: string): Promise<void>
+  backfillExcerpts(): Promise<number>
 }
 
-type DocumentRow = { id: string; title: string; excerpt: string; updated_at: number }
+const SUMMARY_COLUMNS = 'id, title, excerpt, updated_at'
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 12).padEnd(10, '0')
 }
 
-function toSummary(row: DocumentRow): DocumentSummary {
-  return { id: row.id, title: row.title, excerpt: row.excerpt, updatedAt: row.updated_at }
+function toSummary(row: Row): DocumentSummary {
+  return {
+    id: String(row.id),
+    title: String(row.title),
+    excerpt: String(row.excerpt),
+    updatedAt: Number(row.updated_at),
+  }
+}
+
+function toBytes(value: Value | undefined): Uint8Array | null {
+  if (value instanceof ArrayBuffer) {
+    return new Uint8Array(value)
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength))
+  }
+
+  return null
 }
 
 export function createDocumentStore(db: Db): DocumentStore {
-  const listStatement = db.prepare(
-    'SELECT id, title, excerpt, updated_at FROM documents ORDER BY updated_at DESC',
-  )
-  const getStatement = db.prepare(
-    'SELECT id, title, excerpt, updated_at FROM documents WHERE id = ?',
-  )
-  const insertStatement = db.prepare(
-    'INSERT INTO documents (id, title, excerpt, updated_at, state) VALUES (?, ?, ?, ?, NULL)',
-  )
-  const loadStateStatement = db.prepare('SELECT state FROM documents WHERE id = ?')
-  const saveStateStatement = db.prepare(`
-    INSERT INTO documents (id, title, excerpt, updated_at, state)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      title = excluded.title,
-      excerpt = excluded.excerpt,
-      updated_at = excluded.updated_at,
-      state = excluded.state
-  `)
-  const backfillCandidatesStatement = db.prepare(
-    "SELECT id, state FROM documents WHERE excerpt = '' AND state IS NOT NULL",
-  )
-  const backfillUpdateStatement = db.prepare(
-    'UPDATE documents SET excerpt = ? WHERE id = ?',
-  )
-
   return {
-    list() {
-      return (listStatement.all() as DocumentRow[]).map(toSummary)
+    async list() {
+      const { rows } = await db.execute(
+        `SELECT ${SUMMARY_COLUMNS} FROM documents ORDER BY updated_at DESC`,
+      )
+
+      return rows.map(toSummary)
     },
 
-    create() {
+    async create() {
       const summary: DocumentSummary = {
         id: generateId(),
         title: DEFAULT_DOCUMENT_TITLE,
@@ -62,37 +58,75 @@ export function createDocumentStore(db: Db): DocumentStore {
         updatedAt: Date.now(),
       }
 
-      insertStatement.run(summary.id, summary.title, summary.excerpt, summary.updatedAt)
+      await db.execute({
+        sql: 'INSERT INTO documents (id, title, excerpt, updated_at, state) VALUES (?, ?, ?, ?, NULL)',
+        args: [summary.id, summary.title, summary.excerpt, summary.updatedAt],
+      })
 
       return summary
     },
 
-    get(id) {
-      const row = getStatement.get(id) as DocumentRow | undefined
+    async get(id) {
+      const { rows } = await db.execute({
+        sql: `SELECT ${SUMMARY_COLUMNS} FROM documents WHERE id = ?`,
+        args: [id],
+      })
+      const [row] = rows
 
       return row ? toSummary(row) : null
     },
 
-    loadState(id) {
-      const row = loadStateStatement.get(id) as { state: Buffer | null } | undefined
+    async loadState(id) {
+      const { rows } = await db.execute({
+        sql: 'SELECT state FROM documents WHERE id = ?',
+        args: [id],
+      })
 
-      return row?.state ? new Uint8Array(row.state) : null
+      return toBytes(rows[0]?.state)
     },
 
-    saveState(id, state, title, excerpt) {
-      saveStateStatement.run(id, title, excerpt, Date.now(), Buffer.from(state))
+    async saveState(id, state, title, excerpt) {
+      await db.execute({
+        sql: `
+          INSERT INTO documents (id, title, excerpt, updated_at, state)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            excerpt = excluded.excerpt,
+            updated_at = excluded.updated_at,
+            state = excluded.state
+        `,
+        args: [id, title, excerpt, Date.now(), state],
+      })
     },
 
-    backfillExcerpts() {
-      const rows = backfillCandidatesStatement.all() as { id: string; state: Buffer }[]
+    async backfillExcerpts() {
+      const { rows } = await db.execute(
+        "SELECT id, state FROM documents WHERE excerpt = '' AND state IS NOT NULL",
+      )
+      const updates: InStatement[] = []
 
       for (const row of rows) {
+        const state = toBytes(row.state)
+
+        if (!state) {
+          continue
+        }
+
         const doc = new Y.Doc()
-        Y.applyUpdate(doc, new Uint8Array(row.state))
-        backfillUpdateStatement.run(extractExcerpt(doc), row.id)
+        Y.applyUpdate(doc, state)
+        updates.push({
+          sql: 'UPDATE documents SET excerpt = ? WHERE id = ?',
+          args: [extractExcerpt(doc), String(row.id)],
+        })
+        doc.destroy()
       }
 
-      return rows.length
+      if (updates.length > 0) {
+        await db.batch(updates, 'write')
+      }
+
+      return updates.length
     },
   }
 }

@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import express from 'express'
 import * as Y from 'yjs'
-import { HocuspocusProvider, WebSocketStatus } from '@hocuspocus/provider'
+import {
+  HocuspocusProvider,
+  HocuspocusProviderWebsocket,
+  WebSocketStatus,
+} from '@hocuspocus/provider'
 import type { Server } from '@hocuspocus/server'
 import {
   DOC_BODY_FIELD,
@@ -32,18 +36,23 @@ export type Client = {
 export type ConnectOptions = {
   doc?: Y.Doc
   sendSchemaVersion?: boolean
+  origin?: string
   onAuthenticated?: () => void
   onAuthenticationFailed?: (reason: string) => void
 }
 
+export type StartServerOptions = {
+  allowedOrigins?: readonly string[]
+}
+
 export async function waitFor(
-  predicate: () => boolean,
+  predicate: () => boolean | Promise<boolean>,
   timeoutMs = 8000,
   label = 'condition',
 ): Promise<void> {
   const startedAt = Date.now()
 
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - startedAt > timeoutMs) {
       throw new Error(`Timed out after ${timeoutMs}ms waiting for ${label}`)
     }
@@ -142,22 +151,38 @@ export function seededRandom(seed: number): () => number {
   }
 }
 
+function webSocketWithOrigin(origin: string): typeof WebSocket {
+  return class extends WebSocket {
+    constructor(url: string | URL) {
+      super(url, { headers: { origin } } as unknown as string[])
+    }
+  }
+}
+
 export function createCollabHarness() {
   const clients = new Set<Client>()
   const servers = new Set<RunningServer>()
   const tempDirectories: string[] = []
 
-  function tempDatabasePath(): string {
+  function tempDatabaseUrl(): string {
     const directory = mkdtempSync(join(tmpdir(), 'collab-docs-integration-'))
     tempDirectories.push(directory)
 
-    return join(directory, 'documents.db')
+    return `file:${join(directory, 'documents.db')}`
   }
 
-  async function startServer(databasePath = ':memory:'): Promise<RunningServer> {
-    const db = openDatabase(databasePath)
+  async function startServer(
+    databaseUrl = ':memory:',
+    options: StartServerOptions = {},
+  ): Promise<RunningServer> {
+    const db = await openDatabase({ url: databaseUrl })
     const store = createDocumentStore(db)
-    const server = createCollabServer({ store, port: 0, app: express() })
+    const server = createCollabServer({
+      store,
+      port: 0,
+      app: express(),
+      allowedOrigins: options.allowedOrigins,
+    })
     await server.listen()
 
     let stopped = false
@@ -190,13 +215,23 @@ export function createCollabHarness() {
     const query = new URLSearchParams({ [SCHEMA_VERSION_PARAMETER]: String(DOC_SCHEMA_VERSION) })
     const url = sendSchemaVersion ? `${running.url}?${query}` : running.url
 
+    const socket = options.origin
+      ? new HocuspocusProviderWebsocket({
+          url,
+          WebSocketPolyfill: webSocketWithOrigin(options.origin),
+        })
+      : null
     const provider = new HocuspocusProvider({
-      url,
+      ...(socket ? { websocketProvider: socket } : { url }),
       name,
       document: doc,
       onAuthenticated: () => options.onAuthenticated?.(),
       onAuthenticationFailed: ({ reason }) => options.onAuthenticationFailed?.(reason),
     })
+
+    if (socket) {
+      provider.attach()
+    }
 
     let destroyed = false
 
@@ -211,6 +246,7 @@ export function createCollabHarness() {
         destroyed = true
         clients.delete(client)
         provider.destroy()
+        socket?.destroy()
         doc.destroy()
       },
     }
@@ -234,5 +270,5 @@ export function createCollabHarness() {
     }
   }
 
-  return { startServer, connect, tempDatabasePath, cleanup }
+  return { startServer, connect, tempDatabaseUrl, cleanup }
 }
