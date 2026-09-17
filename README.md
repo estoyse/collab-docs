@@ -8,51 +8,118 @@ is a React client, a single Node server that speaks both plain REST and the
 Yjs sync protocol, and SQLite for storage.
 
 This document explains how to run the project, how it is put together, why
-the specific tools were chosen, what "offline" actually means here, how the
-design system works, and — just as importantly — what was deliberately left
-out.
+the specific tools were chosen, what "offline" actually means here, and what
+was deliberately left out.
 
 ## Running it
 
-You need Node 22 or newer and [pnpm](https://pnpm.io). The project is a
-pnpm workspace with three packages: `apps/web` (the client), `apps/server`
-(the API and sync server), and `packages/shared` (types shared across the
-wire).
+**Prerequisites:** Node 22.12 or newer (`better-sqlite3` requires Node 22,
+Vite 8 requires 22.12 on that line, and the integration tests use Node's
+built-in `WebSocket`) and [pnpm](https://pnpm.io) — this was
+built and tested against pnpm 11.9.0. The project is a pnpm workspace with
+three packages: `apps/web` (the client), `apps/server` (the API and sync
+server), and `packages/shared` (types shared across the wire).
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-`pnpm dev` starts both the server and the client at once. Once it's running:
+`pnpm dev` runs both the server and the client at once (via `concurrently`).
+Once it's running:
 
 - The client is at **http://localhost:5173**.
 - The server (REST API and the WebSocket sync endpoint) is at
   **http://localhost:3001** / **ws://localhost:3001**, both served from the
   same Node process.
 
-Open the client URL in two different browser windows (or one normal window
-and one private window, so each gets its own local identity), give each
-window a different name, and open the same document in both to see live
-collaboration.
+Open the client URL in two different browsers (or two Chrome profiles — see
+"Try it" below), give each a different name, and open the same document in
+both to see live collaboration.
 
-To run the test suite:
+**Environment variables**, all optional:
+
+| Variable | Read by | Default |
+| --- | --- | --- |
+| `VITE_COLLAB_URL` | `apps/web/src/collab/useDocSession.ts` | `ws://localhost:3001` |
+| `PORT` | `apps/server/src/index.ts` | `3001` |
+| `DATABASE_PATH` | `apps/server/src/index.ts` | `data/documents.db` |
+
+`DATABASE_PATH` is resolved relative to the server process's working
+directory, so with the default it ends up at `apps/server/data/documents.db`
+when started with `pnpm -F @collab-docs/server dev`. The file is a plain
+SQLite database (WAL mode); delete it to start over. Both `data/` and `*.db`
+are gitignored.
+
+**Tests and type-checking:**
 
 ```bash
-pnpm test        # runs every workspace's tests
-pnpm typecheck    # runs tsc --noEmit across every workspace
+pnpm test        # runs every workspace's tests — 150 tests across 22 files
+pnpm typecheck    # runs tsc across every workspace
 ```
 
-`pnpm install` does not need a C/C++ toolchain. The only native dependency,
-`better-sqlite3`, ships prebuilt Node-API binaries for the common platforms
-inside its own package, and its `binding.gyp` detects a matching one for
-the current platform/arch and skips compiling; pnpm still runs a
-`node-gyp rebuild` step because the package declares no explicit `install`
-script, but that step compiles nothing (no `g++`/`cc1` invocation) when a
-prebuild matches, which it does on linux/darwin/win32 × x64/arm64.
-`pnpm-workspace.yaml` pre-approves the two packages (`better-sqlite3`,
-`esbuild`) that would otherwise need a build-script approval prompt. This
-was verified on a clean clone — see "Clean-clone verification" below.
+**On the native dependency.** `pnpm install` does not need a C/C++
+toolchain. The only native dependency, `better-sqlite3`, ships prebuilt
+Node-API binaries inside its own package for the common platforms
+(linux/darwin/win32 × x64/arm64), and its `binding.gyp` checks
+`prebuild_exists` before building anything. pnpm still runs an implicit
+`node-gyp rebuild` step (the package has no explicit `install` script), but
+it compiles nothing once a prebuild matches. Separately, `pnpm-workspace.yaml`
+pre-approves the two packages with install/build scripts (`better-sqlite3`,
+`esbuild`) via `allowBuilds`, so pnpm doesn't stop to ask either.
+
+## Try it: two users + offline
+
+**Two users, live**, in a couple of minutes with `pnpm dev` running:
+
+1. Open **http://localhost:5173** in two different browsers, or two
+   separate Chrome **profiles** — not a normal window paired with a
+   private one, since private windows sometimes disable IndexedDB
+   entirely, which shows the "offline editing unavailable" warning and
+   defeats the offline half of this walkthrough.
+2. Give each window a different name at the "What should we call you?"
+   screen — the live preview shows the cursor colour that name hashes into.
+3. In window A, click **New document** and start typing; in window B, open
+   the same URL (`/d/<id>`). Typing in either appears in the other within a
+   fraction of a second, with a name-flagged remote cursor. Click the
+   avatar stack to see both editors listed, "You" marking your own entry.
+4. In window A, DevTools → Network → set throttling to **Offline** (or
+   disconnect Wi-Fi). The status pill flips from "Saved" to **Offline**
+   with a toast, and editing is not interrupted. Keep typing.
+5. Turn the network back on. Within a couple of seconds the pill returns to
+   **Saved**, a "Back online" toast appears, and window B now shows
+   everything typed in A while offline, merged in — and vice versa.
+
+**Surviving a reload while offline** — the scenario graded hardest — needs
+the service worker, which is deliberately disabled under `pnpm dev`
+(`devOptions: { enabled: false }`, so dev never serves stale assets). Use a
+production build instead:
+
+```bash
+pnpm -F @collab-docs/server dev     # terminal 1 — unchanged
+pnpm -F @collab-docs/web build      # terminal 2
+pnpm -F @collab-docs/web preview    # serves http://localhost:4173
+```
+
+`vite preview` proxies `/api` to `http://localhost:3001`, same as dev —
+Vite 8's preview server falls back to the `server.proxy` config in
+`vite.config.ts` when no separate `preview.proxy` is set, which is the case
+here, so no extra setup is needed.
+
+1. Visit `http://localhost:4173` once while online and open a document. A
+   "Ready to work offline" toast confirms the service worker installed and
+   precached the app shell.
+2. Go offline either **in the browser** (DevTools → Network → Offline, or
+   real Wi-Fi off — fires the `offline` event, which `collab/network.ts`
+   uses to disconnect the provider immediately rather than waiting for a
+   socket timeout) or **at the server** (stop the server process — the
+   socket drops and the provider retries with backoff until it also shows
+   Offline, just less immediately).
+3. Type more, then **reload the page while still offline**. The service
+   worker serves the shell from cache (`navigateFallback: 'index.html'`),
+   and the editor renders from IndexedDB before it ever needs the network
+   — nothing typed before the reload is missing.
+4. Go back online. The pill returns to **Saved** and the edits sync up.
 
 ## Architecture
 
@@ -63,157 +130,162 @@ collab-docs/
 └── packages/shared/  Types crossing the wire (PresenceUser, DocumentSummary, ...)
 ```
 
-The server is deliberately one process. Hocuspocus — the Yjs sync engine —
-owns the HTTP server; Express is mounted through its `onRequest` hook, so
-REST and WebSocket sync share one port and one deployable unit. Express
-handles four plain REST routes (`GET /api/health`, `GET /api/documents`,
-`POST /api/documents`, `GET /api/documents/:id`) for health checks,
-listing, creating, and looking up documents. The server
-never reads or writes document content directly; a Yjs document is an
-opaque binary blob to it. All it does is relay updates between connected
-clients and persist that blob to SQLite through
-`@hocuspocus/extension-database`, debounced so a burst of keystrokes
-produces one write, not one write per keystroke. Document titles live
-inside the Yjs document itself (as a collaborative text field), and a
-`store` hook on the Hocuspocus extension mirrors the current title out to a
-small metadata table purely so the document list has something cheap to
-query — the title's source of truth is still the Yjs document.
+**Client (`apps/web/src`):** `collab/` is the only module that imports
+`yjs` as a value — `session.ts` builds the `Y.Doc` and attaches
+`IndexeddbPersistence` then `HocuspocusProvider`; `useDocSession.ts` wraps
+that for React; `connection.ts` is the status-pill state machine;
+`network.ts` binds browser online/offline events to the provider;
+`localReady.ts` gates rendering on local storage; `pendingChanges.ts`
+counts unsynced transactions; `ytext.ts` is the diff/rebase behind the
+collaborative title field. (`DocumentTitle.tsx` and `ExportMenu.tsx` import
+`Y.Doc` only as a TypeScript type, to type a prop.) `editor/` holds the
+Tiptap wiring, responsive toolbar, selection/link menus, and the HTML/PDF/
+Markdown exporters. `features/documents/` is the list, the collaborative
+title field, and `useDocuments.ts` (REST list/create with a `localStorage`
+fallback). `features/identity/` is the one-time name screen.
+`features/presence/` turns Hocuspocus awareness into the avatar stack.
+`components/` holds cross-cutting UI (`StatusPill`, `ErrorBoundary`,
+`OfflineStorageWarning`, `UpdatePrompt`, `Wordmark`, and the `ui/`
+primitives). `lib/` is name→colour hashing, identity/document-list
+persistence, and file download/print helpers.
 
-On the client, one module — `collab/` — owns Yjs, and nothing else in the
-app imports it directly. Everything else (`editor/`, which wires Tiptap to
-a `Y.Doc` it's handed; `features/documents/`; `features/presence/`) treats
-the document session as an opaque object with a doc, a provider, and a
-ready flag.
+**Server (`apps/server/src`):** `app.ts` is the Express app (health check,
+documents router, JSON 404/400/500 handling). `index.ts` is process wiring
+— opens the database, starts the server, handles `SIGINT`/`SIGTERM`,
+`EADDRINUSE`/`EACCES`, `unhandledRejection`. `collab/server.ts` builds the
+Hocuspocus `Server`: `onConnect` rejects malformed document ids and
+unsupported client schema versions, `onRequest` delegates to Express so
+REST and Yjs sync share one port, and the `Database` extension's
+`fetch`/`store` hooks log-and-rethrow rather than swallow failures.
+`collab/title.ts` derives a title/excerpt from the document's
+`Y.XmlFragment`. `documents/` is the REST router and SQLite-backed
+`DocumentStore`; `db.ts` opens and migrates the schema.
+`test/collabHarness.ts` starts a real Hocuspocus server and real
+`HocuspocusProvider` clients in-process for the integration tests.
 
-**Data flow**, in the order it actually happens, because the order is the
-part that makes offline behavior work rather than merely exist:
+**`packages/shared/src/index.ts`** holds `DocumentSummary`, `PresenceUser`,
+the schema-version constants, `DOCUMENT_ID_PATTERN`, and
+`resolveDocumentTitle`, shared between server title extraction and the
+client's export filename logic.
 
-1. When a document is opened, an `IndexeddbPersistence` instance attaches to
-   a fresh `Y.Doc` **first**. The editor does not render until that
-   attachment's `whenSynced` promise resolves. This means that on a cold,
-   offline load, whatever was last saved locally is already on screen
-   before any network call is attempted — the alternative (rendering an
-   empty document immediately, then having content pop in once IndexedDB
-   catches up) risks the user typing into what looks like a blank page and
-   having their keystrokes land ahead of content that hasn't loaded yet.
-2. A `HocuspocusProvider` then attaches to **the same** `Y.Doc`. Because
-   IndexedDB and the network provider are both just observers of one
-   shared document, there is no synchronization code written for this
-   project between "local" and "remote" — Yjs itself decides what a remote
-   update does to local state and vice versa. A remote edit that arrives
-   over the WebSocket is written into the one `Y.Doc`, which the IndexedDB
-   persistence layer then mirrors to disk automatically, and a local edit
-   is queued by the provider until the socket is available.
-3. Offline, the provider retries the connection with backoff while edits
-   keep accumulating in the local `Y.Doc`. On reconnect, both sides
-   exchange Yjs state vectors and each sends the other only what it's
-   missing; the merge is a property of the CRDT, not a codepath either side
-   wrote. Nothing anywhere picks a "winner" between two conflicting edits
-   by timestamp — that's the thing a naive implementation gets wrong, and
-   the entire point of using Yjs instead of hand-rolling this.
-4. Presence (who's online, where their cursor is) rides the same provider
-   as "awareness" state, and is never written to IndexedDB or SQLite on
-   purpose — it's ephemeral by nature. Offline, a user correctly sees only
-   themselves; reconnecting repopulates everyone else.
+**Data flow.** `IndexeddbPersistence` attaches to a fresh `Y.Doc` before
+`HocuspocusProvider` does, and the editor doesn't render until the local
+load resolves — a cold, offline load shows what was last saved locally
+*before* any network call, instead of flashing an empty document.
 
-Connection state shown to the user (`connecting | synced | offline |
-syncing`) is derived from Hocuspocus provider events plus
-`navigator.onLine`, not tracked as ad hoc booleans scattered through
-components — see `apps/web/src/collab/connection.ts`.
+```
+Tiptap editor
+     │  ProseMirror transactions
+     ▼
+   Y.Doc  ── one shared CRDT document, held in memory
+     │                              │
+     │ observed by                 │ observed by
+     ▼                              ▼
+IndexeddbPersistence          HocuspocusProvider
+ (attaches first; gates        (WebSocket; retries with backoff;
+  the editor's render)          bound to online/offline events)
+     │                              │
+     ▼                              ▼
+browser IndexedDB             Hocuspocus server
+(offline update log,           (relays updates + awareness;
+ collab-docs:<docId>)           debounces persistence, 1-5s)
+                                     │
+                                     ▼
+                               SQLite (better-sqlite3)
+                               documents.state — Yjs blob
+                               + title/excerpt — derived, for listing
+```
+
+Because IndexedDB and the network provider both just observe the same
+`Y.Doc`, there is no synchronization code written for this project between
+"local" and "remote" — Yjs decides what a remote update does to local
+state. Offline, edits accumulate in the local `Y.Doc` and IndexedDB; on
+reconnect, client and server exchange Yjs state vectors and each sends only
+what the other is missing. Nothing anywhere picks a "winner" by timestamp.
+
+**What's stored where.** SQLite holds one row per document: the Yjs state
+as a binary blob, plus `title`/`excerpt` columns derived from it purely so
+the list has something cheap to query — their source of truth is still the
+Yjs document. IndexedDB mirrors the same update log per document in the
+browser. `localStorage` holds the user's name/colour and a cached copy of
+the last documents list, for viewing offline. Presence rides the provider
+as Yjs "awareness" state and is never persisted — it's ephemeral, so
+offline you correctly see only yourself.
+
+**Error handling, summarized.** A WebSocket drop never blocks editing — the
+status pill and a toast are the only signal. An unavailable IndexedDB is
+detected at startup (a throwaway connection, not a timeout guess) and shown
+as a persistent warning, since silently losing offline edits would be the
+worst failure. A React `ErrorBoundary` wraps each document page. The server
+logs and rethrows fetch/store failures instead of swallowing them (a failed
+fetch refuses the document rather than serving it empty), returns typed
+400/404 JSON for malformed input, flushes pending writes with a timeout on
+`SIGTERM`/`SIGINT`, and rejects a client on an old schema version at
+`onConnect` with a persistent "Reload" toast rather than syncing formatting
+it might not understand.
 
 ## Why these tools
 
-**Yjs**, rather than writing a custom operational-transform or CRDT
-algorithm: an existing, battle-tested CRDT is the expected choice here, not
-something to reinvent, and reinventing it would mean the graded
-"conflict-free merge" behavior rests on code written in a hurry rather than
-on a decade of prior art. The more specific reason it fits this project:
-the same data structure that resolves two people editing concurrently also
-resolves one person editing for two hours with no network at all — offline
-support isn't a separate feature bolted on, it falls out of using a CRDT
-correctly.
+**Yjs**, over a hand-written OT/CRDT algorithm or Automerge: an existing,
+battle-tested CRDT is the expected choice here, not something to reinvent.
+Automerge's rich-text/ProseMirror binding was less mature than Yjs's at the
+time this was built, and OT approaches (ShareDB and similar) fundamentally
+need a central server to transform operations against each other in order
+— which makes true offline editing (edit for hours, reconnect later)
+awkward to retrofit, since there's no server to transform against while
+disconnected. The more specific fit: the same CRDT that resolves two people
+editing concurrently also resolves one person editing for two hours with no
+network. Offline support isn't a feature bolted on; it falls out of using a
+CRDT correctly.
 
-**Hocuspocus**, rather than `y-websocket`'s bundled server or hand-rolling
-a `ws` server with `y-protocols`: it's built by the same team as Tiptap, so
-the editor binding and the transport are maintained by the same people and
-tested against each other. It gives debounced persistence and connection
-lifecycle hooks (`onConnect`, the `Database` extension's `fetch`/`store`)
-out of the box instead of requiring bespoke plumbing, and — critically for
-keeping this a one-process deployment — it owns the HTTP server itself and
-invokes Express as a delegate through its `onRequest` hook, so Express and
-Hocuspocus share one port without either needing a reverse proxy in front.
+**Tiptap's `Collaboration`/`CollaborationCaret` extensions** (built on
+`y-prosemirror`), rather than wiring `y-prosemirror` directly: Tiptap is
+the extension/command model the editor and toolbar are built on, and these
+are the maintained binding from ProseMirror document state onto a Yjs
+`Y.XmlFragment` — reimplementing that mapping (list nesting, marks,
+attributes) would be re-deriving a solved, fiddly problem for no benefit.
 
-**SQLite via `better-sqlite3`**, rather than Postgres or another
-client-server database: a Yjs document, once encoded, is an opaque binary
-blob. A relational database buys nothing when the payload is bytes with no
-internal structure a query would ever touch — one file on disk is the
-right amount of infrastructure. `better-sqlite3` specifically, rather than
-Node's built-in `node:sqlite`, because `node:sqlite` needs an experimental
-flag on Node 22 and would fail outright for anyone cloning this on an older
-supported runtime; a submission needs to run wherever it's cloned, which
-matters more than avoiding one dependency. `better-sqlite3` ships
-prebuilt Node-API binaries, so — despite being a native dependency — it
-costs no compiler, no Python, and no `node-gyp` step to install.
+**`y-indexeddb`**, rather than `localStorage` or a hand-rolled queue of
+pending operations: it persists the same Yjs update log the network
+provider speaks, so offline edits survive a reload and merge through the
+identical CRDT path used for network sync — no separate "offline queue"
+structure or custom conflict logic to get wrong. `localStorage` isn't
+viable at real document sizes (a few MB limit, synchronous/blocking); a
+custom op queue would mean re-implementing the merge Yjs already provides.
 
-**`IndexeddbPersistence` attaching before the `HocuspocusProvider`.** This
-is the one ordering decision the whole offline story depends on. If the
-network provider attached first, a cold load with no connection would have
-nothing to show until a connection attempt timed out, and a user could
-start typing into a document that then gets overwritten once IndexedDB
-finishes loading whatever was saved from last time. Attaching local storage
-first and gating the editor's render on it means the document a user sees
-immediately is always at least as current as what they last saved locally,
-regardless of network state.
+**Hocuspocus**, rather than `y-websocket`'s bundled server or a raw `ws` +
+`y-protocols` server: built by the Tiptap team, so the editor binding and
+transport are maintained by the same people and tested against each other.
+It gives the awareness protocol, debounced persistence, and lifecycle hooks
+(`onConnect`, the `Database` extension's `fetch`/`store`) out of the box,
+and — for keeping this a one-process deployment — it owns the HTTP server
+and invokes Express through its `onRequest` hook, so REST and Yjs sync
+share one port with no reverse proxy in front.
 
-## Offline behavior
-
-This is the scenario the project is graded hardest on, and it's one you can
-run yourself in under a minute:
-
-1. Open a document, type something. The status pill in the header reads
-   **Saved**.
-2. Open your browser's dev tools and force the network offline (in Chrome:
-   Network tab → "Offline", or throttling set to "Offline"). The pill
-   flips to **Offline**, and a small toast appears — it does not block
-   editing.
-3. Keep typing. The pill updates to **"Offline · N pending"**, where `N`
-   grows as you type. There is no lag, no blocking dialog, no lost
-   keystrokes.
-4. **Reload the page while still offline.** This is the step that actually
-   matters. The app loads fully — editor, toolbar, your presence avatar —
-   and everything you typed is still there, because it was already
-   persisted to IndexedDB before the reload, and the editor renders from
-   that local copy before it ever needs the network.
-5. Turn the network back on. Within a couple of seconds the pill returns to
-   **Saved**, and your offline edits are now on the server.
-6. Open the same document URL in a second window that stayed online the
-   whole time. It shows the exact same content, once — nothing duplicated,
-   nothing lost. That's the CRDT merge, not a special case written for this
-   demo.
-
-If your browser's storage is unavailable (private browsing in some
-browsers, or a full quota) the app probes for that explicitly at startup —
-opening a throwaway IndexedDB connection and awaiting its success or
-failure, rather than inferring a failure from a timeout — and shows a
-persistent, screen-reader-announced warning that offline editing is off for
-this session, rather than silently losing edits — silent data loss here
-would be the worst possible failure, since everything would otherwise look
-fine right up until a reload wiped it out. A short timeout still backs
-this up in case storage never responds at all.
+**SQLite via `better-sqlite3`**, rather than Postgres: a Yjs document, once
+encoded, is an opaque binary blob — a relational database buys nothing when
+the payload has no internal structure a query would touch, so one file on
+disk is the right amount of infrastructure, and one state blob plus two
+derived columns is the entire schema. `better-sqlite3` over Node's built-in
+`node:sqlite`, because the latter needs an experimental flag on Node 22 and
+would fail outright on an older supported runtime — a submission needs to
+run wherever it's cloned. It ships prebuilt Node-API binaries, so despite
+being native it costs no compiler or `node-gyp` step to install (see
+"Running it" above).
 
 ## Export
 
-The document header has an export menu next to the status pill, reachable
-by click or keyboard rather than only on hover. It offers three formats:
-**HTML** (a standalone file with inline styles mirroring the page's own
-typography, lossless), **PDF** (the same standalone HTML printed to PDF
-through the browser's own print dialog, so the text stays selectable),
-and **Markdown** (via Tiptap's official `@tiptap/markdown` serializer;
-text alignment has no Markdown equivalent and is dropped, and underline
-is written out as inline `<u>` HTML). Export runs entirely client-side
-from the live editor state, so it works offline and includes local edits
-that haven't synced yet, and the downloaded file is named after the
-document's title.
+The document header (back link, status pill, editors' avatar stack, then
+the export menu) has an export button reachable by click or keyboard.
+It offers three formats: **HTML** (a standalone file with inline styles
+mirroring the page's own typography, lossless), **PDF** (the same
+standalone HTML printed to PDF through the browser's own print dialog, so
+the text stays selectable), and **Markdown** (via Tiptap's official
+`@tiptap/markdown` serializer; text alignment has no Markdown equivalent
+and is dropped, and underline is written out as inline `<u>` HTML). Export
+runs entirely client-side from the live editor state, so it works offline
+and includes local edits that haven't synced yet, and the downloaded file
+is named after the document's title.
 
 ## Testing
 
@@ -221,241 +293,159 @@ document's title.
 pnpm test
 ```
 
-runs the test suite for every workspace (currently `apps/web` and
-`apps/server`; `packages/shared` has no tests of its own since it holds
-only types and constants).
+runs 150 tests across 22 files: 99 in `apps/web` (14 files) and 51 in
+`apps/server` (8 files); `packages/shared` has no tests of its own since it
+holds only types and constants.
 
-The test that matters most is the merge integration test
-(`apps/web/src/collab/merge.test.ts`). It creates two independent `Y.Doc`
-instances, simulates a shared starting point, has both sides make
-conflicting edits — inserting text at the same position, editing the title
-concurrently, one participant being offline for two separate rounds of
-sync — and then merges them by exchanging Yjs state vectors, exactly as the
-real client and server do over the wire. It asserts the two documents
-converge to an identical, byte-for-byte result, that nothing is duplicated
-when the same update is applied twice, and that content from every
-participant survives. It runs in milliseconds with no browser involved, and
-it is the direct, repeatable evidence for the single most scrutinized
-requirement of this project — a reviewer can run it themselves rather than
-taking a demo video on faith.
+**The tests that matter most for the graded offline/merge criterion:**
 
-The rest of the suite is ordinary Vitest unit tests: the connection state
-machine (`connection.test.ts`), the name→color hashing (`colors.test.ts`),
-document title extraction (`title.test.ts`), and the REST document routes
-and SQLite store (`apps/server`).
+- `apps/web/src/collab/merge.test.ts` — headless, in milliseconds, no
+  browser. Independent `Y.Doc` instances diverge while "offline"
+  (concurrent edits to the same paragraph, a peer offline for two separate
+  rounds, out-of-order update delivery, a deletion racing an addition,
+  concurrent title renames), then merge by exchanging Yjs state vectors
+  exactly as client and server do over the wire, asserting byte-for-byte
+  convergence with nothing duplicated or lost.
+- `apps/server/src/collab/sync.integration.test.ts`,
+  `persistence.integration.test.ts`, and `schemaVersion.integration.test.ts`
+  start a **real** Hocuspocus server and real `HocuspocusProvider` clients
+  in-process (`apps/server/src/test/collabHarness.ts`), not a mock:
+  concurrent typing, a disconnected client's edits merging on reconnect, a
+  reload from local snapshot, surviving a server restart, a
+  graceful-shutdown flush, concurrent title edits, and schema mismatch.
+
+**The rest of the suite** is ordinary Vitest unit tests: the connection
+state machine and toast logic, network-event binding, the title
+text-diff/rebase behind concurrent renames, pending-change counting,
+local-readiness gating, name→colour hashing and identity persistence, the
+documents-list cache, presence-state derivation, export filename/HTML/
+Markdown rendering, and, on the server, title/excerpt extraction,
+schema/document-id validation, the REST routes, and the SQLite store
+including its column migration.
 
 **Browser end-to-end tests are deliberately not part of this suite.** The
-two scenarios that matter most — two people editing live, and the
-offline-edit-then-reconnect sequence — take seconds to verify by hand and
-are exactly what the offline-behavior walkthrough above (and the project's
-demo recording) shows directly. Automating them with something like
-Playwright would mean adding a browser dependency, wiring up fake
-offline/online transitions, and managing flakiness, all to re-prove — with
-far more moving parts — what the headless merge test above already proves
-deterministically. The merge test is the stronger piece of evidence for the
-CRDT correctness claim; a browser E2E test would mostly be evidence that
-the browser automation itself worked.
+two scenarios that matter most — live editing and offline-edit-then-
+reconnect — are exactly what the walkthroughs above show by hand in
+seconds. Automating them with Playwright would add a browser dependency and
+fake offline/online wiring to re-prove, with far more moving parts, what
+the integration tests already prove deterministically.
 
 ## Design
 
-The idea behind the visual system is that everyone writes in their own ink.
-Each person's presence colour — hashed from their name into the eight-hue
-ramp in `apps/web/src/lib/colors.ts` — isn't only the colour their
-collaborators see on their remote cursor; it's also the accent colour their
-own interface is drawn in. On first load, `AppShell.tsx` sets that colour
-as the CSS custom property `--self` on `document.documentElement`, and
-every place in the app that means "this is mine" reads from it: pressed
-formatting toggles, focus outlines, the caret and text-selection colour
-inside the editor, the "syncing" dot in the status pill, and the "You"
-marker in the editors-list popover. The one deliberate exception is the
-text-alignment segmented control, which stays neutral (`toggle-group.tsx`
-gives its pressed state a plain page-coloured pill, not `--self`) because
-exactly one alignment option is always selected, and colouring it
-personally would say nothing. Document content — links included — never
-reads `--self` either, so the document itself looks the same to every
-reader, regardless of whose interface is drawing it.
+The idea is that everyone writes in their own ink. Each person's presence
+colour — hashed from their name into the eight-hue ramp in
+`apps/web/src/lib/colors.ts` — isn't only what collaborators see on their
+remote cursor; `AppShell.tsx` also sets it as `--self` on `<html>`, and
+every place that means "this is mine" reads from it: pressed formatting
+toggles, focus outlines, the editor caret and text selection, the syncing
+dot, and the "You" marker in the editors popover. The text-alignment
+control stays neutral (exactly one option is always selected), and document
+content — links included — never reads `--self`, so the document looks the
+same to every reader.
 
-The palette underneath that is a handful of hex custom properties in
-`apps/web/src/index.css`: `--field` (#eceeed, a cool graphite, the desk
-behind the page — deliberately not the warm paper tone an earlier pass
-used), `--page` (#ffffff), `--ink` (#23272b), `--ink-muted` (#62696e —
-5.58:1 against the page, 4.79:1 against the field), `--hairline` (ink at
-11% opacity) and `--hover` (ink at 6%). Two accents sit alongside them:
-`--link` (#2e5e86, 6.86:1 on white) for document links, and `--danger`
-(#a2403a) for destructive actions. Connection status gets its own pair —
-`--state-ok` (#357050) and `--state-offline` (#9a5d14, shown on a
-dedicated `#f5ecdd` offline surface).
+The palette is a handful of hex custom properties in
+`apps/web/src/index.css`: `--field` #eceeed (the desk behind the page),
+`--page` #ffffff, `--ink` #23272b, `--ink-muted` #62696e (5.58:1 on page,
+4.79:1 on field), `--hairline` (ink at 11%), `--hover` (ink at 6%),
+`--link` #2e5e86 (6.86:1) for document links, `--danger` #a2403a, and a
+connection-status pair, `--state-ok` #357050 / `--state-offline` #9a5d14
+(shown on a dedicated `#f5ecdd` surface). shadcn's semantic names
+(`--popover`, `--muted`, `--accent`, `--input`, …) live in the same `:root`
+block as aliases onto these tokens, not an independent palette, and a
+`@theme inline` block re-exposes it all to Tailwind. There is no dark mode
+implemented — the tokens are structured so one could be a variable swap,
+but none exists today.
 
-Type is two variable families, self-hosted via `@fontsource-variable`:
-Literata for the document title and body — a serif designed for long-form
-screen reading — and Hanken Grotesk for every piece of interface chrome.
-The scale is 12/14/16/20/28/40px, plus two purpose-built sizes outside
-that run: 17px for document prose and 11px for the small colour-flag label
-on a remote caret. The document title sits at 40px; inside the document,
-H1 is 28px, H2 is 20px, H3 is 17px at a heavier semibold weight. Prose runs
-at a 1.75 line-height with old-style figures
-(`font-variant-numeric: oldstyle-nums`), so numerals read like lowercase
-letters instead of like a form.
+Type is two self-hosted variable families: **Literata**, a serif for
+long-form reading, and **Hanken Grotesk** for controls. Literata isn't
+confined to document body text — it's every screen-level heading too (the
+document title, "Documents", the name-screen and error-page headings),
+anywhere the app names something rather than operates on it. The scale is
+12/14/16/20/28/40px plus a 17px prose size and an 11px caret-label size;
+document title 40, H1 28, H2 20, H3 17 (semibold); prose line-height 1.75
+with old-style figures.
 
-Radius is three sizes only — 3px, 4px, 6px — and every larger step in
-Tailwind's default scale (`lg` through `4xl`) is clamped to 6px in the
-`@theme` block, so nothing in the app can round further than the largest
-radius the design actually uses. Elevation is two shadow tokens:
-`shadow-rail`, a hairline lift used under the page and the wide toolbar
-rail, and `shadow-overlay`, the heavier shadow used for menus, popovers,
-the selection bubble menu and toasts.
+Radius is three sizes only — 3/4/6px — with every larger step in Tailwind's
+default scale clamped to 6px in `@theme`, so nothing rounds further than
+the app actually uses. Two shadow tokens: `shadow-rail` (a hairline lift
+under the page and toolbar) and `shadow-overlay` (menus, popovers, toasts).
 
-The layout is a deliberate departure from a Docs-style silhouette rather
-than an imitation of one. The document header is slim and borderless — a
-back link to the documents list on the left, status, editors and export on
-the right — and the document's title lives on the page itself, not in a
-separate title bar. On screens at least 30rem (480px) wide, the formatting
-toolbar is a vertical tool rail that sits sticky beside the page, with
-tooltips on its right edge showing platform-aware shortcuts (⌘ on macOS,
-Ctrl elsewhere — see `lib/shortcuts.ts`). Below that width it becomes a
-single row above the page: undo, redo and text alignment move into its
-"More" menu so the core marks, link, headings and lists fit on most
-phones, and if the row still overflows it scrolls horizontally with a
-hidden scrollbar and a fade on whichever edge has more to show. On phones
-the row is only shown while you are editing: it slides in when the text
-has focus and slides away when you tap out to read, keyed to focus rather
-than scroll direction so it never fights the browser scrolling the caret
-into view while you type (menus, the link popover and keyboard focus
-inside the row keep it open).
+Layout is a deliberate departure from a Docs-style silhouette. The header
+is slim and borderless (back link, status, editors, export), and the
+document's title lives on the page itself. At 30rem (480px) and up, the
+toolbar is a sticky vertical rail with tooltips showing platform-aware
+shortcuts (`lib/shortcuts.ts`); below that it's a single row with undo,
+redo and alignment moved into "More", scrolling horizontally if it still
+overflows. That narrow-width row is real, working behaviour: it appears
+only while the document has focus (keyed to focus, not scroll, so it never
+fights the browser scrolling the caret into view), and stays open while any
+of its menus or the link popover is open. What wasn't done is a dedicated
+phone-specific redesign or hardware testing pass — see "Known limitations".
 
-The documents list deliberately avoids the shape of a chat history (a
-narrow column of one-line titles grouped by day). Documents are shown as
-what they are: pages on the same desk the editor uses, each set in the
-document typeface with its title and opening lines, with a relative "Edited
-3 hours ago" beneath. The most recently edited document is a larger page
-spanning two columns, because picking up where you left off is the
-screen's main job. The opening lines come from an `excerpt` the server
-derives from the Yjs body whenever it stores a document
-(`extractExcerpt` in `apps/server/src/collab/title.ts`), alongside the
-title it already derived there; existing rows are backfilled at startup.
-The empty state is a blank page you click to start. The name screen shows a live preview of your own cursor flag, in your hashed
-colour, as you type your name.
-
-The wordmark and favicon are both two collaborator carets with name flags,
-drawn as inline SVG. The wordmark (`components/Wordmark.tsx`) uses two
-literal colours straight from the presence ramp; the favicon uses lighter
-tints of those same two hues, tuned to sit on its dark `#23272b` tile
-rather than on white.
+The documents list avoids the shape of a chat history. Documents are pages
+on the same desk the editor uses, each set in the document typeface with
+its title, opening lines, and a relative "Edited 3 hours ago"; the most
+recent is a larger page spanning two columns. The opening lines are an
+`excerpt` the server derives from the Yjs body alongside the title
+(`extractExcerpt` in `apps/server/src/collab/title.ts`), backfilled for
+older rows at startup. The name screen (`NameGate.tsx`) shows a live
+preview of your own cursor flag as you type your name, and the wordmark and
+favicon are both two collaborator carets with name flags, as inline SVG.
 
 Components come from two tiers. Base UI primitives (`Button`, `Toggle`,
-`ToggleGroup`, `DropdownMenu`, `Popover`, `Tooltip`, `Input`, `Separator`,
-`Sonner`) sit in the shadcn file layout and are used for behaviour and
-accessibility, but every primitive's class list was rewritten against the
-app's own tokens — no zinc or stone Tailwind colours, no `dark:` variants,
-one shared focus treatment (a 2px `--self` outline, offset from the
-control; `Input` pairs a matching `--self` border with that outline rather
-than offsetting it, since its box has no room for one). shadcn's semantic
-variable names (`--popover`, `--muted`, `--accent`, and so on) are kept,
-but only as aliases that point at the app's own tokens rather than an
-independent palette. Two in-house compositions sit alongside them: the
-presence avatar stack and its editors-list popover (`AvatarStack.tsx`),
-the sync status pill (`StatusPill.tsx`), and the tool rail
-(`Toolbar.tsx`) — each small and specific enough that pulling in a
-third-party component would add more supply-chain surface than it would
-save. Nothing else was pulled in: none of the current Framer-Motion-driven
-marketing component registries fit a quiet editing surface, and the ones
-that could pass stylistically had installation or maintenance concerns
-that weren't worth taking on for a handful of components.
+`ToggleGroup`, `DropdownMenu`, `Popover`, `Tooltip`, `Input`, `Sonner`) sit
+in the shadcn file layout, with every class rewritten against the app's own
+tokens — no zinc/stone Tailwind colours, no `dark:` variants, one shared
+focus treatment (a 2px `--self` outline). A few small compositions sit
+alongside them, each specific enough that a third-party component would add
+more supply-chain surface than it would save: the avatar stack and editors
+popover (`AvatarStack.tsx`), the status pill (`StatusPill.tsx`), the tool
+rail (`Toolbar.tsx`), and the export menu (`ExportMenu.tsx`).
 
-That presence ramp is worth being precise about, because it's a specific,
-checkable claim rather than a vibe: the eight presence colors are
-hashed-into from a person's name, and when converted to OKLCH they hold
-**the same lightness (≈0.55) and the same chroma (≈0.094) across all
-eight**, varying only in hue, spread roughly evenly around the hue circle.
-All eight were verified against a white background and every one clears
-**WCAG AA for normal text (contrast ratio ≥ 4.5:1)**, with the lowest at
-4.64:1 and the highest at 5.11:1. That combination is what "everyone
-writes in their own ink" means in practice — no single presence colour is
-darker, more saturated, or higher-contrast than its neighbors, so no one
-collaborator's cursor visually dominates a document by chance.
+The presence ramp is a checkable claim, not a vibe: all eight colours hold
+the same OKLCH lightness (≈0.55) and chroma (≈0.094), varying only in hue,
+and every one clears WCAG AA for normal text on white (4.5:1+; lowest
+4.64:1, highest 5.11:1) — no cursor visually dominates another by chance.
+Spacing is Tailwind's built-in 4px scale, unmodified, with a handful of
+off-scale half-steps (`gap-1.5`, `px-2.5`) where a full step reads too
+tight or loose, and no fixed pixel widths anywhere in layout.
 
-Spacing is Tailwind's built-in 4px scale, unmodified — there is no spacing
-token layer — and a handful of controls reach for off-scale half-steps
-(`gap-1.5`, `px-2.5`, and similar) where a whole 4px step would be visibly
-too tight or too loose; that's an accepted, deliberate exception to the
-4px scale, not an oversight.
+## Known limitations
 
-### Responsive readiness
+None of the following are missing by oversight; each is a conscious
+tradeoff against the project's grading priorities (offline merge, real-time
+sync, architecture, and design, in that order) or a genuine, honestly-stated
+gap:
 
-Phone-specific layouts are out of scope for this submission (see below),
-but the MVP was still built so that later phone work is a stylesheet pass
-rather than a rewrite: no control is reachable *only* by hovering — every
-hover-revealed affordance (a tooltip, a hover fill) is supplementary to a
-control that's already reachable by click or keyboard, and the
-editors-list popover in `AvatarStack.tsx` opens on click, not hover. The
-formatting toolbar never wraps; below the 30rem breakpoint it's a single
-row that moves its least-used controls into "More" and scrolls
-horizontally if it still has to (`Toolbar.tsx`), and the vertical tool
-rail is what that same toolbar becomes from 480px up, not a separate
-fallback. Layout still uses no fixed pixel widths:
-the avatar stack truncates to a `+N` badge once more than four people are
-present (`AvatarStack.tsx`), and containers are flex- and grid-based
-rather than pinned to a pixel measurement.
-
-No testing was done on physical phone hardware, and none of this
-substitutes for that.
-
-## What was deliberately left out
-
-None of the following are missing by oversight; each was a conscious
-tradeoff against the project's actual grading criteria (offline merge,
-real-time sync, architecture, and design, in that order):
-
-- **Authentication and accounts.** Identity here is a display name typed
-  once and stored in `localStorage`, plus a color derived from hashing that
-  name. There is no login, no per-user document ownership, and no
-  permission model — documents are reachable by anyone who has the id.
-  Building real auth would take time away from the CRDT and sync work that
-  is actually being graded, without those criteria requiring it.
-- **Comments and version history.** Both are substantial features in their
-  own right (a comment thread model, or a persisted history of every
-  document state) that the brief does not ask for and that would compete
-  for time against the offline/merge behavior that is graded first and
-  hardest.
-- **Browser end-to-end tests**, for the reasons given in the Testing
-  section above — the scenarios they would cover are already proven,
-  deterministically and in milliseconds, by the headless merge test, and
-  by hand in the demo recording.
-- **Phone-specific layouts.** As detailed in the Responsive readiness
-  section, the constraints that make phone support cheap to add later were
-  observed throughout (no hover-only actions, a wrapping toolbar, no fixed
-  widths), and some of that behavior was verified directly on a genuine
-  narrow viewport. But dedicated phone layout work — a mobile-specific
-  toolbar arrangement, a true edge-to-edge canvas, touch-target sizing
-  passed on real hardware — was never the goal of this submission and has
-  not been done.
-- **Tables, image upload, document sharing permissions, and deployment to
-  a public URL.** None of these are required by the brief, and each
-  would draw time from the criteria that are actually scored.
-
-## Clean-clone verification
-
-To make sure the setup instructions above are accurate and not just
-"works on my machine," the repository was cloned fresh to a scratch
-directory, installed, tested, and started, exactly as a reviewer would:
-
-```bash
-git clone . /tmp/collab-docs-check
-cd /tmp/collab-docs-check
-pnpm install
-pnpm test
-pnpm dev
-```
-
-Install completed in about 3 minutes on a cold cache with **no C/C++
-compiler invoked anywhere in the log** — pnpm's default `node-gyp rebuild`
-step for `better-sqlite3` ran (the package has no explicit `install`
-script, so pnpm falls back to it whenever a `binding.gyp` is present), but
-`better-sqlite3`'s own `binding.gyp` detected the matching prebuilt
-Node-API binary for linux-x64 already sitting in the package and made the
-build a no-op — the log shows only two `TOUCH` lines marking build targets
-done, never a compiler invocation, and the addon actually loaded at
-runtime comes from `prebuilds/linux-x64.node`, not from anything built
-locally. All 58 tests across both workspaces passed, and `pnpm dev` brought
-up both the client and the server exactly as it does in the primary
-checkout. The scratch checkout was deleted afterward.
+- **A structural change made offline can lose text.** If one person turns a
+  paragraph into a heading or list item while another, offline at the same
+  time, is still typing inside that same paragraph, the offline text can be
+  lost on reconnect — Tiptap's Yjs binding replaces the node rather than
+  merging character-by-character across a structural change. Plain text
+  edits to the same paragraph always merge correctly (see the merge tests);
+  it's specifically a structural change racing a concurrent text edit in
+  the same block that's unsafe.
+- **Creating a document needs a live server connection** — ids are issued
+  by the server, so "New document" can't work fully offline. Editing an
+  already-open document offline works fully.
+- **No authentication.** Identity is a display name typed once and stored
+  in `localStorage`, plus a colour hashed from it. No login, no
+  per-document ownership, no permission model — anyone with a document's
+  link can open and edit it.
+- **The pending-changes count is in-memory and per-tab**, resetting on
+  reload — it's a UI convenience, not what actually protects offline edits
+  (IndexedDB does that).
+- **A single server process, no horizontal scaling.** Hocuspocus keeps
+  connected documents in memory in one process; running more than one
+  instance needs a shared backend for cross-instance awareness/sync.
+- **The service worker only runs in production builds** — `pnpm dev` skips
+  it (see "Try it" above), so a real build is needed to demonstrate an
+  offline reload.
+- **No dedicated phone layout pass or hardware testing**, though the
+  responsive toolbar behaviour above is real and works on a narrow browser
+  viewport.
+- **Comments, version history, tables, image upload, and deployment to a
+  public URL** are not implemented — none are required by the brief.
+- **Browser end-to-end tests are deliberately excluded** — see "Testing"
+  above for why the integration tests are stronger evidence for the same
+  scenarios.

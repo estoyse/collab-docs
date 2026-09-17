@@ -1,7 +1,10 @@
 # Collab Docs — Design
 
 **Date:** 2026-09-16
-**Status:** Approved for planning
+**Status:** Original design plan (2026-09-16). The implementation diverged
+in places — see the corrections inline below. `README.md` describes the
+system as actually built and is the authoritative reference; this document
+is kept for the reasoning behind the original decisions.
 
 A collaborative document editor: real-time multi-user editing, genuine
 offline support with conflict-free merge, and an authored visual design.
@@ -134,24 +137,37 @@ stack is assembled.**
   returns them with an awareness handle. `useDocSession` wraps lifecycle
   for React. Nothing else in the app imports Yjs.
 - `editor/` — Tiptap extensions, toolbar and bubble-menu commands.
-  Receives the Ydoc as an opaque input.
+  Receives the Ydoc as an opaque input. Remote carets render here too
+  (`CollaborationCaret`), not in `features/presence/`.
 - `features/documents/` — list, create, collaborative rename.
-- `features/presence/` — awareness → avatar stack and remote carets.
-- `design/` — tokens, primitives, icons. No feature code.
+- `features/presence/` — awareness → avatar stack.
 - `lib/` — id generation, name→colour hashing.
+
+> As built, design tokens and primitives live in `components/ui/` and
+> `index.css`, not a separate `design/` module — there was never enough
+> token-layer code to justify its own folder.
 
 ### Server modules
 
-- `index.ts` — Express app and HTTP server; Hocuspocus attached to the
-  upgrade event.
-- `routes/documents.ts` — `GET /api/documents`, `POST /api/documents`.
-- `hocuspocus.ts` — server config, debounce, connection logging.
-- `persistence/` — SQLite extension plus a `documents` metadata table.
+- `index.ts` — process wiring: opens the database, starts the server,
+  handles shutdown signals.
+- `app.ts` — the Express app: REST routes and JSON error handling.
+- `collab/server.ts` — the Hocuspocus server config, `onConnect`
+  validation, and the `Database` extension's persistence hooks.
+- `documents/routes.ts`, `documents/store.ts` — the REST router and the
+  SQLite-backed document store.
 
 Document **titles live inside the Ydoc** as a collaborative field, so
-concurrent renames merge like any other edit. An `onStoreDocument` hook
-mirrors the title into the metadata table purely so the list screen has
-something cheap to read.
+concurrent renames merge like any other edit. The `Database` extension's
+`store` hook mirrors the title (and a derived excerpt) into the metadata
+table purely so the list screen has something cheap to read.
+
+> As built, Hocuspocus does not attach to an existing Express server's
+> `upgrade` event — it owns the HTTP server itself, and Express is invoked
+> as a delegate through Hocuspocus's `onRequest` hook. The effect is the
+> same (one port, one process) but the wiring direction is the opposite of
+> what's described here. There is no separate `hocuspocus.ts` or
+> `persistence/` folder; that logic lives in `collab/server.ts`.
 
 ## 4. Data flow
 
@@ -290,8 +306,11 @@ Light theme only, structured so dark mode is a variable swap.
 
 ### Responsive readiness
 
-Phone layouts are **out of scope for the MVP but the first thing built
-after it**, so the MVP must avoid choices that are expensive to reverse.
+Phone layouts were planned as **out of scope for the MVP but the first
+thing built after it**, so the MVP was meant to avoid choices that are
+expensive to reverse. As built, the narrow-width toolbar behaviour below
+ended up implemented as real, working behaviour rather than deferred — see
+`README.md`'s Design section for the current, accurate description.
 Constraints observed from the start:
 
 - **Hover-reveal is never the only path to an action.** Every
@@ -372,9 +391,11 @@ version history; image upload; tables; browser E2E tests; deployment to a
 public URL. None are required by the brief, and each would draw time from
 the criteria that are.
 
-**Phone layouts are deferred, not dismissed** — they are the first work
-after the MVP, and §6 records the constraints the MVP observes so that
-work is a stylesheet pass rather than a restructure.
+**Phone layouts were planned as deferred, not dismissed** — the intent was
+for them to be the first work after the MVP. As built, the responsive
+toolbar behaviour described in §6 shipped as part of the MVP itself, ahead
+of this plan's schedule; a dedicated phone hardware-testing pass is the
+part that remains undone (see `README.md`'s "Known limitations").
 
 ## 11. Risks
 
