@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import type { PresenceUser } from '@collab-docs/shared'
 import { Toaster } from '@/components/ui/sonner'
@@ -9,6 +9,12 @@ import { loadIdentity } from '@/lib/identity'
 
 export function AppShell() {
   const [user, setUser] = useState<PresenceUser | null>(() => loadIdentity())
+
+  useLayoutEffect(() => {
+    if (user) {
+      document.documentElement.style.setProperty('--self', user.color)
+    }
+  }, [user])
 
   if (!user) {
     return <NameGate onReady={setUser} />

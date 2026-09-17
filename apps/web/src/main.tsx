@@ -1,5 +1,6 @@
-import '@fontsource-variable/inter-tight'
-import '@fontsource-variable/source-serif-4'
+import '@fontsource-variable/hanken-grotesk'
+import '@fontsource-variable/literata'
+import '@fontsource-variable/literata/wght-italic.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'

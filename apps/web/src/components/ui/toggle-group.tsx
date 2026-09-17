@@ -10,7 +10,7 @@ function ToggleGroup<Value extends string>({
     <ToggleGroupPrimitive
       data-slot="toggle-group"
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-lg bg-hover p-0.5",
+        "inline-flex items-center gap-px rounded-md bg-hover p-0.5 data-vertical:flex-col",
         className
       )}
       {...props}
@@ -26,7 +26,7 @@ function ToggleGroupItem({
     <Toggle
       data-slot="toggle-group-item"
       className={cn(
-        "h-6 min-w-6 rounded-md px-1.5 hover:bg-page/70 aria-pressed:bg-page aria-pressed:text-ink aria-pressed:shadow-xs",
+        "h-6 min-w-6 rounded-sm px-1.5 hover:bg-page/70 aria-pressed:bg-page aria-pressed:text-ink aria-pressed:shadow-rail data-[pressed]:bg-page data-[pressed]:text-ink data-[pressed]:shadow-rail",
         className
       )}
       {...props}
