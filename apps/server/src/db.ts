@@ -13,6 +13,12 @@ export function applySchema(db: Db): void {
       state BLOB
     )
   `)
+
+  const columns = db.prepare('PRAGMA table_info(documents)').all() as { name: string }[]
+
+  if (!columns.some((column) => column.name === 'excerpt')) {
+    db.exec("ALTER TABLE documents ADD COLUMN excerpt TEXT NOT NULL DEFAULT ''")
+  }
 }
 
 export function openDatabase(path: string): Db {

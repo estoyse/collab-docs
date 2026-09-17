@@ -35,11 +35,13 @@ describe('documents API', () => {
 
     expect(created.status).toBe(201)
     expect(created.body.title).toBe('Untitled')
+    expect(created.body.excerpt).toBe('')
 
     const listed = await request(app).get('/api/documents')
 
     expect(listed.body).toHaveLength(1)
     expect(listed.body[0].id).toBe(created.body.id)
+    expect(listed.body[0].excerpt).toBe('')
   })
 
   it('always defaults the title, since nothing sends one', async () => {

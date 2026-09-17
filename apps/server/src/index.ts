@@ -9,6 +9,7 @@ const DATABASE_PATH = process.env.DATABASE_PATH ?? 'data/documents.db'
 
 const db = openDatabase(DATABASE_PATH)
 const store = createDocumentStore(db)
+store.backfillExcerpts()
 
 const app = express()
 app.use(express.json())

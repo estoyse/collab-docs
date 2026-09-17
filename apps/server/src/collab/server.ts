@@ -2,7 +2,7 @@ import type express from 'express'
 import { Database } from '@hocuspocus/extension-database'
 import { Server } from '@hocuspocus/server'
 import type { DocumentStore } from '../documents/store.js'
-import { extractTitle } from './title.js'
+import { extractExcerpt, extractTitle } from './title.js'
 
 const DOCUMENT_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -24,7 +24,12 @@ export function createCollabServer(options: {
       new Database({
         fetch: async ({ documentName }) => store.loadState(documentName),
         store: async ({ documentName, state, document }) => {
-          store.saveState(documentName, new Uint8Array(state), extractTitle(document))
+          store.saveState(
+            documentName,
+            new Uint8Array(state),
+            extractTitle(document),
+            extractExcerpt(document),
+          )
         },
       }),
     ],
