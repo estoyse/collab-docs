@@ -12,13 +12,13 @@ export function UpdatePrompt() {
   }
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border border-hairline bg-page px-4 py-3 shadow-sm">
-      <span className="text-sm">A new version is available.</span>
+    <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-md border border-hairline bg-page py-2 pl-4 pr-2 text-sm text-ink shadow-overlay">
+      <span>A new version is ready.</span>
       <Button size="sm" onClick={() => void updateServiceWorker(true)}>
         Reload
       </Button>
       <Button size="sm" variant="ghost" onClick={() => setNeedRefresh(false)}>
-        Later
+        Not now
       </Button>
     </div>
   )
