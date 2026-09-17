@@ -1,13 +1,98 @@
 import { useNavigate } from 'react-router'
 import { Plus } from 'lucide-react'
+import { cn } from 'cn'
+import type { DocumentSummary } from '@collab-docs/shared'
 import { Button } from '@/components/ui/button'
 import { Wordmark } from '@/components/Wordmark'
+import { formatEdited } from './formatEdited'
 import { useDocuments } from './useDocuments'
-import { formatUpdatedAt, groupDocuments } from './groupDocuments'
+
+const SKELETON_PAGES = 6
+
+function PagePreview({
+  document,
+  featured = false,
+}: {
+  document: DocumentSummary
+  featured?: boolean
+}) {
+  const title = document.title.trim()
+  const excerpt = (document.excerpt ?? '').trim()
+
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'flex min-h-0 flex-1 flex-col overflow-hidden rounded-sm border border-hairline bg-page text-left shadow-rail transition-[box-shadow,border-color] duration-150 group-hover:border-ink/20 group-hover:shadow-overlay motion-reduce:transition-none',
+        featured
+          ? 'aspect-[3/2] px-6 pt-6 sm:aspect-auto sm:px-10 sm:pt-10'
+          : 'aspect-[3/4] flex-none px-4 pt-4',
+      )}
+    >
+      <p
+        className={cn(
+          'font-serif font-semibold text-ink',
+          featured ? 'text-xl leading-tight sm:text-2xl' : 'line-clamp-3 text-sm leading-snug',
+          !title && 'text-ink-muted',
+        )}
+      >
+        {title || 'Untitled'}
+      </p>
+      <p
+        className={cn(
+          'mt-3 min-h-0 flex-1 overflow-hidden font-serif whitespace-pre-line [contain:size] [mask-image:linear-gradient(to_bottom,black_55%,transparent)]',
+          featured
+            ? 'text-sm leading-relaxed text-ink sm:mt-4 sm:text-prose sm:leading-relaxed'
+            : 'text-[0.6875rem] leading-[1.6] text-ink/80',
+          !excerpt && 'text-ink-muted italic',
+        )}
+      >
+        {excerpt || 'Start writing…'}
+      </p>
+    </div>
+  )
+}
+
+function DocumentTile({
+  document,
+  featured = false,
+  now,
+  onOpen,
+}: {
+  document: DocumentSummary
+  featured?: boolean
+  now: Date
+  onOpen: () => void
+}) {
+  const title = document.title.trim() || 'Untitled'
+  const edited = formatEdited(document.updatedAt, now)
+
+  return (
+    <li className={cn(featured && 'col-span-2 sm:row-span-2')}>
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`${title}, ${edited.toLowerCase()}`}
+        className="group flex h-full w-full flex-col rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-self"
+      >
+        <PagePreview document={document} featured={featured} />
+        <span
+          className={cn(
+            'mt-3 block text-ink-muted',
+            featured ? 'text-sm' : 'text-xs',
+          )}
+        >
+          {edited}
+        </span>
+      </button>
+    </li>
+  )
+}
 
 export function DocumentList() {
   const { documents, loading, error, create } = useDocuments()
   const navigate = useNavigate()
+  const now = new Date()
 
   const onCreate = async () => {
     const created = await create()
@@ -17,20 +102,21 @@ export function DocumentList() {
     }
   }
 
-  const groups = groupDocuments(documents, new Date())
+  const showSkeleton = loading && documents.length === 0
+  const showEmpty = !loading && !error && documents.length === 0
 
   return (
-    <div className="mx-auto w-full max-w-[46rem] px-4 pb-24 sm:px-8">
-      <div className="flex h-14 items-center justify-between">
+    <div className="mx-auto w-full max-w-6xl px-4 pb-24 sm:px-8">
+      <div className="flex h-14 items-center">
         <Wordmark />
       </div>
 
-      <div className="mt-12 flex flex-wrap items-end justify-between gap-4 sm:mt-16">
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-4 sm:mt-14">
         <h1 className="font-serif text-2xl font-semibold tracking-[-0.01em] text-ink">
           Documents
         </h1>
         <Button size="lg" onClick={() => void onCreate()}>
-          <Plus className="size-4" data-icon="inline-start" />
+          <Plus />
           New document
         </Button>
       </div>
@@ -39,59 +125,66 @@ export function DocumentList() {
         <p className="mt-8 rounded-md bg-danger/8 px-4 py-3 text-sm text-danger">{error}</p>
       )}
 
-      {loading && (
+      {showSkeleton && (
         <div className="mt-10">
           <span className="sr-only">Loading documents</span>
-          <ul className="border-t border-hairline" aria-hidden="true">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <li
-                key={index}
-                className="flex items-baseline justify-between gap-4 border-b border-hairline px-2 py-3.5"
-              >
-                <div className="h-5 w-2/5 rounded-sm bg-hover" />
-                <div className="h-4 w-12 shrink-0 rounded-sm bg-hover" />
+          <ul
+            aria-hidden
+            className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-5"
+          >
+            {Array.from({ length: SKELETON_PAGES }).map((_, index) => (
+              <li key={index} className={cn(index === 0 && 'col-span-2 sm:row-span-2')}>
+                <div
+                  className={cn(
+                    'rounded-sm border border-hairline bg-page p-4',
+                    index === 0 ? 'aspect-[3/2] sm:aspect-auto sm:h-full' : 'aspect-[3/4]',
+                  )}
+                >
+                  <div className="h-3 w-3/5 rounded-xs bg-hover" />
+                  <div className="mt-3 h-2 w-full rounded-xs bg-hover" />
+                  <div className="mt-2 h-2 w-4/5 rounded-xs bg-hover" />
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {!loading && !error && documents.length === 0 && (
-        <div className="mt-16">
-          <p className="font-serif text-xl text-ink">Start the first document</p>
-          <p className="mt-2 max-w-sm text-sm text-ink-muted">
-            Documents you create or open from a shared link will show up here.
-          </p>
-          <Button variant="outline" size="lg" className="mt-6" onClick={() => void onCreate()}>
-            New document
-          </Button>
+      {showEmpty && (
+        <div className="mt-10 grid grid-cols-2 gap-x-5 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-5">
+          <button
+            type="button"
+            onClick={() => void onCreate()}
+            className="group col-span-2 flex flex-col rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-self"
+          >
+            <span className="flex aspect-[3/2] flex-col rounded-sm border border-dashed border-ink/25 bg-page/60 px-6 pt-6 transition-colors group-hover:border-ink/40 group-hover:bg-page sm:px-10 sm:pt-10">
+              <span className="font-serif text-xl font-semibold text-ink-muted sm:text-2xl">
+                Untitled
+              </span>
+              <span className="mt-3 font-serif text-sm text-ink-muted italic sm:mt-4 sm:text-prose">
+                Start writing…
+              </span>
+            </span>
+            <span className="mt-3 text-sm text-ink-muted">
+              No documents yet. Start one, then share its link to write together.
+            </span>
+          </button>
         </div>
       )}
 
-      {!loading &&
-        groups.map((group) => (
-          <div key={group.label} className="mt-10">
-            <h2 className="pb-2 text-sm font-medium text-ink-muted">{group.label}</h2>
-            <ul className="border-t border-hairline">
-              {group.documents.map((document) => (
-                <li key={document.id} className="border-b border-hairline">
-                  <button
-                    type="button"
-                    onClick={() => void navigate(`/d/${document.id}`)}
-                    className="group -mx-2 flex w-[calc(100%+1rem)] items-baseline justify-between gap-4 rounded-sm px-2 py-3.5 text-left transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-self"
-                  >
-                    <span className="min-w-0 truncate font-serif text-lg text-ink">
-                      {document.title.trim() || 'Untitled'}
-                    </span>
-                    <span className="shrink-0 text-sm text-ink-muted tabular-nums">
-                      {formatUpdatedAt(document.updatedAt, new Date())}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+      {documents.length > 0 && (
+        <ul className="mt-10 grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-5">
+          {documents.map((document, index) => (
+            <DocumentTile
+              key={document.id}
+              document={document}
+              featured={index === 0}
+              now={now}
+              onOpen={() => void navigate(`/d/${document.id}`)}
+            />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

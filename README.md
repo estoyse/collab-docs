@@ -321,10 +321,19 @@ the row is only shown while you are editing: it slides in when the text
 has focus and slides away when you tap out to read, keyed to focus rather
 than scroll direction so it never fights the browser scrolling the caret
 into view while you type (menus, the link popover and keyboard focus
-inside the row keep it open). The documents list is the wordmark, a 40px serif "Documents"
-heading, and the documents themselves grouped into Today / Yesterday /
-Earlier this week / Earlier as a hairline-ruled list rather than cards. The
-name screen shows a live preview of your own cursor flag, in your hashed
+inside the row keep it open).
+
+The documents list deliberately avoids the shape of a chat history (a
+narrow column of one-line titles grouped by day). Documents are shown as
+what they are: pages on the same desk the editor uses, each set in the
+document typeface with its title and opening lines, with a relative "Edited
+3 hours ago" beneath. The most recently edited document is a larger page
+spanning two columns, because picking up where you left off is the
+screen's main job. The opening lines come from an `excerpt` the server
+derives from the Yjs body whenever it stores a document
+(`extractExcerpt` in `apps/server/src/collab/title.ts`), alongside the
+title it already derived there; existing rows are backfilled at startup.
+The empty state is a blank page you click to start. The name screen shows a live preview of your own cursor flag, in your hashed
 colour, as you type your name.
 
 The wordmark and favicon are both two collaborator carets with name flags,
