@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     const content = (
       <div className="w-full max-w-sm">
-        <h1 className="font-serif text-xl font-semibold text-ink">{title}</h1>
+        <h1 className="text-xl font-semibold text-ink">{title}</h1>
         <p className="mt-2 text-sm text-ink-muted">{description}</p>
         <div className="mt-6 flex items-center gap-4">
           <Button size="lg" onClick={() => window.location.reload()}>

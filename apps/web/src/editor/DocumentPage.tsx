@@ -56,7 +56,7 @@ function DocumentNotFound() {
       </div>
       <div className="flex flex-1 items-center justify-center pb-24">
         <div className="w-full max-w-sm">
-          <h1 className="font-serif text-xl font-semibold text-ink">This document doesn't exist</h1>
+          <h1 className="text-xl font-semibold text-ink">This document doesn't exist</h1>
           <p className="mt-2 text-sm text-ink-muted">
             The link may be mistyped, or the document was never created on this server.
           </p>
