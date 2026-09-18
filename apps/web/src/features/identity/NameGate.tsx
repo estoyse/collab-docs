@@ -26,7 +26,7 @@ export function NameGate({ onReady }: { onReady: (user: PresenceUser) => void })
 
       <div className="flex flex-1 items-center justify-center pb-24">
         <form onSubmit={onSubmit} className="w-full max-w-sm">
-          <h1 className="font-serif text-xl font-semibold text-ink">
+          <h1 className="text-xl font-semibold text-ink">
             What should we call you?
           </h1>
           <p className="mt-2 text-sm text-ink-muted">
