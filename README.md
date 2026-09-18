@@ -12,11 +12,9 @@ A real-time collaborative document editor that keeps working offline and merges 
 >
 > Once a document is open, typing is not affected: edits apply locally first and sync in the background.
 
-The demo runs the `deploy/koyeb-cloudflare` branch, which changes three things for hosting:
+The demo runs the `deploy/koyeb-cloudflare` branch, which changes how the app is hosted. The main difference:
 
 - **Local SQLite file → Turso (hosted libSQL).** The free server host has no persistent disk, so documents live in a hosted database. The libSQL client still uses a local file in development.
-- **Relative `/api` → API URL set at build time.** The frontend and the server run on different domains.
-- **No origin checks → an allowlist for REST and WebSocket.** Once the server is public, only the demo's own site may call it.
 
 Anyone with the link can see and edit the demo documents.
 
@@ -101,22 +99,13 @@ Both persistence layers observe the same `Y.Doc`, so there is no hand-written lo
 - Clients send a schema version on connect. The server rejects mismatches and the client shows a persistent "Reload" toast instead of syncing content it may not understand.
 - The server stores documents on a 1s debounce (5s max) and flushes pending stores on `SIGINT`/`SIGTERM`, with a 5s timeout.
 
-### Error handling
-
-- A dropped WebSocket never blocks editing; the status pill and toasts are the only signal.
-- IndexedDB availability is probed at startup and a persistent warning is shown if offline editing is unavailable.
-- React error boundaries wrap the app and each document page, with a reload action.
-- Server fetch/store failures are logged and rethrown, so a failed load refuses the document instead of serving it empty.
-- Malformed document ids are rejected on both REST (400) and WebSocket connect; unknown API routes return JSON 404, bad JSON 400, other errors 500.
-- Listen errors (`EADDRINUSE`, `EACCES`) exit with a clear message; the documents list falls back to a cached copy when the server is unreachable.
-
 ## Why these tools
 
 - **Yjs.** A proven CRDT, so concurrent edits and long offline sessions resolve through the same merge with no central transform step. OT systems like ShareDB need a server to order operations, which makes real offline editing awkward, and Automerge's ProseMirror binding was less mature than Yjs's.
 - **Tiptap with `Collaboration`/`CollaborationCaret`** (built on `y-prosemirror`). Tiptap supplies the editor command model, and the maintained binding maps ProseMirror state onto a `Y.XmlFragment` so marks, lists and attributes merge correctly without custom mapping code.
 - **y-indexeddb.** It persists the same Yjs update log the network uses, so offline edits survive reloads and merge through the identical CRDT path. No separate pending-operation queue to get wrong, and no `localStorage` size limits.
 - **Hocuspocus.** From the Tiptap team, it provides awareness, debounced persistence and lifecycle hooks (`onConnect`, database `fetch`/`store`), and hands HTTP requests to Express so REST and sync share one port.
-- **SQLite via better-sqlite3.** A Yjs document is an opaque binary blob, so one row per document in a single file is enough. `better-sqlite3` ships prebuilt binaries and works on Node 22 without the experimental flag `node:sqlite` needs.
+- **SQLite via better-sqlite3.** A Yjs document is an opaque binary blob, so one row per document in a single file is enough.
 
 ## Design
 
@@ -124,11 +113,9 @@ The goal was an interface that stays quiet around the text and is recognisably i
 
 **Why it looks like this**
 
-- **Everyone writes in their own ink.** Each person's presence colour, the one others see on their cursor, is also the accent of their own interface (`--self`): caret, selection, focus outlines, pressed toolbar buttons and the "You" marker. Collaboration is the product, so its colour carries the meaning instead of a generic brand blue. Document content never uses it, so a page reads the same for everyone.
 - **Paper on a desk.** A white page with a hairline border sits on a cool grey desk. Only floating things (menus, popovers, toasts) cast a shadow, and cool graphite was chosen over warm cream to keep attention on the text.
 - **Two typefaces with one job each.** Literata, designed for long reading on screens, sets the document canvas: the title and the prose. DM Sans sets every control and every piece of chrome around it.
 - **The document owns the page.** The title is set on the page itself, and formatting lives in a slim tool rail beside it rather than a ribbon across the top. On narrow screens the rail becomes one row that only appears while you edit.
-- **Documents look like documents.** The documents page shows each one as a small page with its title and opening lines, not a list of titles that reads like a chat history.
 - **Small, fixed scales.** One type scale from 12 to 40px, radii of 3, 4 and 6px, two shadows, Lucide icons at 16px. All of it lives as tokens in `apps/web/src/index.css`.
 
 **How the Base UI primitives were styled**
@@ -149,4 +136,3 @@ The components in `apps/web/src/components/ui` wrap Base UI, which ships behavio
 - Single server instance; scaling out would need a shared backend for sync and awareness.
 - The service worker only runs in production builds.
 - The pending-changes count is per tab and resets on reload (IndexedDB still keeps the edits).
-- No dedicated phone layout pass, and no comments, version history, tables or image upload.
