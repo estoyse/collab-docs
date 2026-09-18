@@ -1,4 +1,4 @@
-import '@fontsource-variable/hanken-grotesk'
+import '@fontsource-variable/dm-sans'
 import '@fontsource-variable/literata'
 import '@fontsource-variable/literata/wght-italic.css'
 import { StrictMode } from 'react'

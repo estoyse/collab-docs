@@ -295,6 +295,10 @@ The concept is that everyone writes in their own ink:
   chroma (≈0.094), varying only in hue, so no cursor reads louder than
   another.
 
+> As built, the chrome face is DM Sans (variable), not Hanken Grotesk.
+> The split itself is unchanged — one serif for the canvas, one sans for
+> every control — and `--font-sans` is the only place the swap lands.
+
 Tokens: spacing on Tailwind's 4px base, unmodified, plus a handful of
 off-scale half-steps where a full step reads too tight or too loose; type
 scale as above; two families — Hanken Grotesk for chrome, Literata for
