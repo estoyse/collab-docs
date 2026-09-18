@@ -130,7 +130,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Literata Variable", ui-serif, Georgia, serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
 

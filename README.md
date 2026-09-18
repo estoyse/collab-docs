@@ -126,7 +126,7 @@ The goal was an interface that stays quiet around the text and is recognisably i
 
 - **Everyone writes in their own ink.** Each person's presence colour, the one others see on their cursor, is also the accent of their own interface (`--self`): caret, selection, focus outlines, pressed toolbar buttons and the "You" marker. Collaboration is the product, so its colour carries the meaning instead of a generic brand blue. Document content never uses it, so a page reads the same for everyone.
 - **Paper on a desk.** A white page with a hairline border sits on a cool grey desk. Only floating things (menus, popovers, toasts) cast a shadow, and cool graphite was chosen over warm cream to keep attention on the text.
-- **Two typefaces with one job each.** Literata, designed for long reading on screens, sets documents and page headings. Hanken Grotesk sets every control.
+- **Two typefaces with one job each.** Literata, designed for long reading on screens, sets the document canvas: the title and the prose. DM Sans sets every control and every piece of chrome around it.
 - **The document owns the page.** The title is set on the page itself, and formatting lives in a slim tool rail beside it rather than a ribbon across the top. On narrow screens the rail becomes one row that only appears while you edit.
 - **Documents look like documents.** The documents page shows each one as a small page with its title and opening lines, not a list of titles that reads like a chat history.
 - **Small, fixed scales.** One type scale from 12 to 40px, radii of 3, 4 and 6px, two shadows, Lucide icons at 16px. All of it lives as tokens in `apps/web/src/index.css`.
