@@ -7,7 +7,9 @@ import { Wordmark } from '@/components/Wordmark'
 import { editedAt, formatEdited } from './formatEdited'
 import { useDocuments } from './useDocuments'
 
-const SKELETON_ROWS = 7
+const SKELETON_ROWS = 6
+
+const ROW_GRID = 'grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6'
 
 function firstLine(excerpt: string): string {
   return excerpt.trim().split('\n', 1)[0]?.trim() ?? ''
@@ -31,21 +33,19 @@ function DocumentRow({
         type="button"
         onClick={onOpen}
         aria-label={`${title}, ${formatEdited(document.updatedAt, now).toLowerCase()}`}
-        className="flex w-full flex-col gap-1 border-b border-hairline px-2.5 py-3 text-left transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-self motion-reduce:transition-none"
+        className={cn(
+          ROW_GRID,
+          'w-full items-baseline border-b border-hairline py-3.5 text-left transition-colors hover:border-self focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-self motion-reduce:transition-none',
+        )}
       >
-        <span className="flex items-baseline justify-between gap-6">
-          <span className="truncate font-serif text-prose text-ink">{title}</span>
-          <span className="flex-none text-xs text-ink-muted tabular-nums">
-            {editedAt(document.updatedAt, now)}
-          </span>
+        <span className="truncate text-right text-xs text-ink-muted tabular-nums">
+          {editedAt(document.updatedAt, now)}
         </span>
-        <span
-          className={cn(
-            'truncate font-serif text-sm text-ink-muted',
-            !line && 'italic opacity-70',
-          )}
-        >
-          {line || 'No content yet'}
+        <span className="min-w-0">
+          <span className="block truncate text-base font-medium text-ink">{title}</span>
+          <span className={cn('mt-1 block truncate text-sm text-ink-muted', !line && 'italic opacity-70')}>
+            {line || 'No content yet'}
+          </span>
         </span>
       </button>
     </li>
@@ -69,13 +69,13 @@ export function DocumentList() {
   const showEmpty = !loading && !error && documents.length === 0
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 pb-24 sm:px-8">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-24 sm:px-8">
       <div className="flex h-14 items-center">
         <Wordmark />
       </div>
 
-      <div className="mt-8 flex flex-wrap items-end justify-between gap-4 sm:mt-10">
-        <h1 className="font-serif text-2xl font-semibold text-ink">Documents</h1>
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-b border-ink pb-4">
+        <h1 className="text-2xl font-semibold text-ink">Documents</h1>
         <Button size="lg" onClick={() => void onCreate()}>
           <Plus />
           New document
@@ -87,25 +87,25 @@ export function DocumentList() {
       )}
 
       {showSkeleton && (
-        <div className="mt-8">
+        <>
           <span className="sr-only">Loading documents</span>
           <ul aria-hidden>
             {Array.from({ length: SKELETON_ROWS }).map((_, index) => (
-              <li key={index} className="border-b border-hairline px-2.5 py-3">
-                <div className="flex items-baseline justify-between gap-6">
-                  <div className="h-3.5 w-2/5 rounded-xs bg-hover" />
-                  <div className="h-2.5 w-14 flex-none rounded-xs bg-hover" />
+              <li key={index} className={cn(ROW_GRID, 'items-baseline border-b border-hairline py-3.5')}>
+                <div className="ml-auto h-2.5 w-14 rounded-xs bg-hover" />
+                <div>
+                  <div className="h-4 w-2/5 rounded-xs bg-hover" />
+                  <div className="mt-2 h-3 w-3/5 rounded-xs bg-hover" />
                 </div>
-                <div className="mt-2.5 h-2.5 w-3/5 rounded-xs bg-hover" />
               </li>
             ))}
           </ul>
-        </div>
+        </>
       )}
 
       {showEmpty && (
-        <div className="mt-8 border-t border-hairline pt-10">
-          <p className="font-serif text-prose text-ink">Nothing here yet</p>
+        <div className="pt-10">
+          <p className="text-base font-medium text-ink">Nothing here yet</p>
           <p className="mt-2 max-w-sm text-sm text-ink-muted">
             Start a document, then share its link with anyone you want writing alongside you.
           </p>
@@ -117,7 +117,7 @@ export function DocumentList() {
       )}
 
       {documents.length > 0 && (
-        <ul className="mt-8">
+        <ul>
           {documents.map((document) => (
             <DocumentRow
               key={document.id}
